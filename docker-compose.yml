@@ -27,6 +27,11 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/src:/app/src
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build: ./frontend
@@ -35,7 +40,8 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     volumes:
       - ./frontend/src:/app/src
 

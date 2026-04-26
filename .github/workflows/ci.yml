@@ -44,6 +44,9 @@ jobs:
       - name: Test
         working-directory: frontend
         run: npx vitest run
+      - name: Build
+        working-directory: frontend
+        run: npm run build
 
   security-python:
     name: Security — Python dependency audit

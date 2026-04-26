@@ -29,4 +29,8 @@ The following features will be targeted as a stretch goal.
 3. PostgreSQL for the database.
    - Simple and easy to use. Support for JSONB which might be useful for auditing.
 4. Docker and Docker Compose for deployment.
-   - Helps with local development and CI. Also helpful for evaluation.  
+   - Helps with local development and CI. Also helpful for evaluation.
+5. GitHub Actions for CI.
+   - Helps with integration testing and deployment.
+6. AI Use
+   - Claude Code for development and code reviews. 

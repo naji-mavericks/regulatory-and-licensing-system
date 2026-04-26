@@ -10,13 +10,28 @@ Implement the full operator workflow: fill a multi-section childcare application
 
 ## Data Model
 
-Four tables. The `submissions` table is the versioning mechanism — each round creates a new row with a full `form_data` snapshot, so nothing is ever overwritten.
+Five tables. The `submissions` table is the versioning mechanism — each round creates a new row with a full `form_data` snapshot, so nothing is ever overwritten.
+
+### `users`
+Minimal profile table. No passwords, no registration, no email verification.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | |
+| username | VARCHAR UNIQUE | |
+| role | ENUM | `operator`, `officer` |
+| full_name | VARCHAR | |
+| email | VARCHAR | |
+| phone | VARCHAR | |
+| created_at | TIMESTAMP | |
+
+Login (`POST /auth/login`) now looks up the user by username and role, returns a JWT with `{ sub: user.id, role }`. If no matching user exists, returns 401. Seed data: 1 operator, 1 officer.
 
 ### `applications`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID PK | |
-| operator_id | VARCHAR | JWT username (no FK to users table) |
+| operator_id | UUID FK → users | Set from JWT `sub` claim |
 | status | ENUM | Internal status (`Application Received`, `Under Review`, etc.) |
 | current_round | INTEGER | Default 1 |
 | created_at | TIMESTAMP | |
@@ -192,7 +207,7 @@ The existing issues (#7–#14) remain the implementation tasks. Updates needed:
 
 | Issue | Change |
 |-------|--------|
-| #7 (Application schema & DB migration) | Refined with ENUMs for doc_type, field_key, target_type, section; documents has application_id + nullable submission_id |
+| #7 (Application schema & DB migration) | Refined with ENUMs for doc_type, field_key, target_type, section; documents has application_id + nullable submission_id; users table + migration; operator_id is FK → users |
 | #8 (Submit application API) | Split: POST /documents/upload (pre-submit AI) + POST /applications (JSON with document_ids) |
 | #9 (Get application API) | Return operator-mapped status label, latest submission + feedback |
 | #10 (Submit application UI — form) | DocumentUploader with real-time AI badge per doc, progress indicator |

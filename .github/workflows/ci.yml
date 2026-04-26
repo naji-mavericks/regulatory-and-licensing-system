@@ -26,7 +26,7 @@ jobs:
         run: uv run pytest tests/ -v
 
   frontend:
-    name: Frontend — lint & test
+    name: Frontend — lint, test and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

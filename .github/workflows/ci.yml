@@ -58,7 +58,8 @@ jobs:
         run: uv sync
       - name: Audit Python dependencies
         working-directory: backend
-        run: uv run pip-audit
+        # CVE-2026-3219 affects pip itself (bundled by uv); ignore until pip upstream ships a fix
+        run: uv run pip-audit --ignore-vuln CVE-2026-3219
 
   security-npm:
     name: Security — npm dependency audit

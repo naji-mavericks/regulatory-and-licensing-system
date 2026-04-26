@@ -1,3 +1,5 @@
+import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,6 +13,8 @@ const schema = z.object({
 type LoginFormData = z.infer<typeof schema>
 
 export default function LoginPage() {
+  const [loginError, setLoginError] = React.useState<string | null>(null)
+  const navigate = useNavigate()
   const {
     register,
     handleSubmit,
@@ -18,10 +22,15 @@ export default function LoginPage() {
   } = useForm<LoginFormData>({ resolver: zodResolver(schema) })
 
   const onSubmit = async (data: LoginFormData) => {
-    const response = await api.post('/auth/login', data)
-    localStorage.setItem('token', response.data.access_token)
-    localStorage.setItem('role', data.role)
-    window.location.href = data.role === 'officer' ? '/officer' : '/operator'
+    setLoginError(null)
+    try {
+      const response = await api.post('/auth/login', data)
+      localStorage.setItem('token', response.data.access_token)
+      localStorage.setItem('role', data.role)
+      navigate(data.role === 'officer' ? '/officer' : '/operator')
+    } catch {
+      setLoginError('Login failed. Please try again.')
+    }
   }
 
   return (
@@ -40,6 +49,7 @@ export default function LoginPage() {
             <option value="officer">Officer</option>
           </select>
         </div>
+        {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
         <button type="submit" disabled={isSubmitting} className="bg-slate-900 text-white p-2 rounded">
           Login
         </button>

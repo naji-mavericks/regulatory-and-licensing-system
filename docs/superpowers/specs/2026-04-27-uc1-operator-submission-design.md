@@ -25,7 +25,7 @@ Minimal profile table. No passwords, no registration, no email verification.
 | phone | VARCHAR | |
 | created_at | TIMESTAMP | |
 
-Login (`POST /auth/login`) now looks up the user by username and role, returns a JWT with `{ sub: user.id, role }`. If no matching user exists, returns 401. Seed data: 1 operator, 1 officer.
+Login (`POST /auth/login`) now looks up the user by username and role, returns a JWT with `{ sub: user.id, role }`. If no matching user exists, returns 401. Seed data: 2 operators (alice, charlie), 1 officer (bob). Seeds are applied in the test conftest fixture. For production/development, seeds can be applied via an Alembic data migration or a standalone `seed.py` script (to be added in the plan).
 
 ### `applications`
 | Column | Type | Notes |
@@ -76,6 +76,8 @@ Pre-submit uploads have `application_id` set and `submission_id = NULL`. On subm
 
 When `target_type = field` and `field_key IS NULL`, the feedback applies to the whole section. When `field_key` is set, it targets a specific field within that section.
 
+**Note on ENUMs:** The spec uses ENUM for `doc_type`, `field_key`, `target_type`, and `section`. The implementation uses SQLAlchemy `String` types for cross-database portability (SQLite in tests, PostgreSQL in production). Validation is handled at the Python level via the API layer.
+
 ## API Endpoints
 
 All endpoints require Bearer token with `role: "operator"` via the existing `require_operator` dependency.
@@ -85,10 +87,10 @@ Upload a document for AI verification before submitting the application.
 
 - **Request:** multipart/form-data — `file` + `doc_type`
 - **AI stub runs immediately:** pass/fail by document type keyword in filename. Files containing `fail-{doc_type}` (e.g. `fail-fire_safety.pdf`) fail. All others pass.
-- **Storage:** File saved to local uploads directory. Row inserted in `documents` with `submission_id = NULL`, `application_id = NULL` (set after application creation, see below).
-- **Response 201:** `{ id, doc_type, filename, ai_status, ai_details }`
+- **Storage:** File saved to local uploads directory. Row inserted in `documents` with `submission_id = NULL` and `application_id` set to the application (created on first upload if not already existing).
+- **Response 201:** `{ id, application_id, doc_type, filename, ai_status, ai_details }`
 
-On the first upload for an application, an application row is created with status `Application Received`. Subsequent uploads for the same session reference the same application. The session/app association is managed by returning an `application_id` on the first upload response, which the frontend sends with subsequent uploads.
+On the first upload (no `application_id` sent), an application row is created with status `Application Received` and its ID is returned in the response. Subsequent uploads should include the `application_id` to associate documents with the same application.
 
 ### `POST /applications`
 Submit the completed application.
@@ -116,7 +118,7 @@ View application current state.
 Create a new submission round with updated fields and/or documents.
 
 - **Request:** JSON — `{ form_data: { <partial — only flagged fields> }, document_ids: [uuid, ...] }`
-- Creates a new submission row (round N+1). Merges the partial form_data with the previous round's form_data snapshot (previous round's values for unflagged fields, new values for flagged fields). Documents from the previous round are carried forward; flagged documents are replaced by the new uploads.
+- Creates a new submission row (round N+1). Merges the partial form_data with the previous round's form_data snapshot (previous round's values for unflagged fields, new values for flagged fields). Document references from the previous round are copied to the new round for all unflagged document types; flagged documents are replaced by the new uploads. Each round has a complete set of document references — no need to walk back through history to find all documents for a given round.
 - Transitions status to `Pre-Site Resubmitted`.
 - **Response 201:** `{ id, status: "Pre-Site Resubmitted", round_number: N+1, ... }`
 
@@ -197,7 +199,7 @@ No global state library. Each page uses React Hook Form (`useForm` + `zodResolve
 1. **submissions.form_data is a full snapshot** — each round saves all fields, not just changes. Simple to query ("what did round 2 look like?").
 2. **documents.application_id is always set** — rejected pre-submit documents remain queryable. `submission_id` is NULL until included in a submission.
 3. **AI runs pre-submit** — operator sees pass/fail per document while still filling out the form, can re-upload before submitting.
-4. **Resubmit merges partial form_data** — operator sends only flagged fields; backend merges with previous round's data.
+4. **Resubmit merges partial form_data, carries forward documents** — operator sends only flagged fields; backend merges with previous round's data. Unflagged document references are copied to the new round so each submission has a complete set.
 5. **field_key and doc_type are ENUMs** — prevents misspelled field references in feedback, DB-level validation.
 6. **Status labels in API responses are always operator-mapped** — UI never has to translate internal statuses.
 

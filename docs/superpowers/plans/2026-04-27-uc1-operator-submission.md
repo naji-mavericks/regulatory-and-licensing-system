@@ -66,9 +66,13 @@ frontend/
 - [ ] **Step 1: Write failing auth test for DB-backed login**
 
 ```python
-# backend/tests/test_auth.py — replace existing test_login_operator_returns_token
+# backend/tests/test_auth.py — replace existing file contents
 
 from uuid import UUID
+
+from jose import jwt
+
+from app.config import settings
 
 def test_login_operator_returns_token(client, db_session):
     response = client.post(
@@ -116,51 +120,7 @@ def test_me_returns_user_profile(client, db_session):
     assert data["role"] == "operator"
 ```
 
-- [ ] **Step 2: Add db_session fixture to conftest.py**
-
-```python
-# backend/tests/conftest.py — add below existing client fixture
-
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-
-from app.database.base import Base
-from app.models import User  # will be created in Step 3
-from app.main import app
-
-
-TEST_DATABASE_URL = "sqlite:///./test.db"
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-
-@pytest.fixture
-def db_engine():
-    engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
-def db_session(db_engine):
-    session = sessionmaker(bind=db_engine)()
-    # seed test users
-    session.add(User(username="alice", role="operator", full_name="Alice Operator", email="alice@test.com", phone="+65 1111 1111"))
-    session.add(User(username="bob", role="officer", full_name="Bob Officer", email="bob@test.com", phone="+65 2222 2222"))
-    session.commit()
-    yield session
-    session.close()
-```
-
-Wait — we need to override `get_db` for tests to use the test session. Let me use a cleaner approach: the fixture creates tables + seeds, and we override the `get_db` dependency in the app.
-
-- [ ] **Step 2: Add db_session fixture to conftest.py**
+- [ ] **Step 2: Add test database fixtures to conftest.py**
 
 ```python
 # backend/tests/conftest.py
@@ -197,6 +157,7 @@ def setup_db():
     db = TestSessionLocal()
     db.add(User(username="alice", role="operator", full_name="Alice Operator", email="alice@test.com", phone="+65 1111 1111"))
     db.add(User(username="bob", role="officer", full_name="Bob Officer", email="bob@test.com", phone="+65 2222 2222"))
+    db.add(User(username="charlie", role="operator", full_name="Charlie Operator", email="charlie@test.com", phone="+65 3333 3333"))
     db.commit()
     db.close()
     yield
@@ -222,7 +183,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import JSON, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -231,7 +192,7 @@ from app.database.base import Base
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)  # "operator" or "officer"
     full_name: Mapped[str] = mapped_column(String, nullable=False)
@@ -341,8 +302,8 @@ Add these classes to `backend/src/app/models.py` after the `User` class:
 class Application(Base):
     __tablename__ = "applications"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    operator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    operator_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="Application Received")
     current_round: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -356,10 +317,10 @@ class Application(Base):
 class Submission(Base):
     __tablename__ = "submissions"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    application_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("applications.id"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    application_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("applications.id"), nullable=False)
     round_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    form_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    form_data: Mapped[dict] = mapped_column(JSON, nullable=False)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     application: Mapped["Application"] = relationship(back_populates="submissions")
@@ -370,14 +331,14 @@ class Submission(Base):
 class Document(Base):
     __tablename__ = "documents"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    application_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("applications.id"), nullable=False)
-    submission_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("submissions.id"), nullable=True)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    application_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("applications.id"), nullable=False)
+    submission_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("submissions.id"), nullable=True)
     doc_type: Mapped[str] = mapped_column(String, nullable=False)
     filename: Mapped[str] = mapped_column(String, nullable=False)
     file_path: Mapped[str] = mapped_column(String, nullable=False)
     ai_status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
-    ai_details: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    ai_details: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     application: Mapped["Application"] = relationship(back_populates="documents", foreign_keys=[application_id])
@@ -387,12 +348,12 @@ class Document(Base):
 class FeedbackItem(Base):
     __tablename__ = "feedback_items"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    submission_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("submissions.id"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    submission_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("submissions.id"), nullable=False)
     target_type: Mapped[str] = mapped_column(String, nullable=False)  # "field" or "document"
     section: Mapped[str] = mapped_column(String, nullable=False)
     field_key: Mapped[str | None] = mapped_column(String, nullable=True)
-    document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id"), nullable=True)
+    document_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("documents.id"), nullable=True)
     comment: Mapped[str] = mapped_column(Text, nullable=False)
     created_by: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -573,7 +534,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import create_token, get_current_user, require_operator
+from app.auth.dependencies import require_operator
 from app.config import settings
 from app.database.session import get_db
 from app.models import Application, Document
@@ -796,6 +757,35 @@ def test_submit_requires_operator_role(client, db_session):
     headers = {"Authorization": f"Bearer {token}"}
     response = client.post("/applications", json={}, headers=headers)
     assert response.status_code == 403
+
+
+def test_list_applications_returns_only_own(client, db_session):
+    """Operator only sees their own applications."""
+    headers = get_operator_token(client, db_session)
+    doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety")
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan")
+
+    client.post(
+        "/applications",
+        json={
+            "application_id": doc1["application_id"],
+            "form_data": {
+                "basic_details": {"centre_name": "Test", "operator_company_name": "Co", "uen": "123", "contact_person": "A", "contact_email": "a@b.com", "contact_phone": "123"},
+                "operations": {"centre_address": "Addr", "type_of_service": "Childcare", "proposed_capacity": 10},
+                "declarations": {"compliance_confirmed": True},
+            },
+            "document_ids": [doc1["id"], doc2["id"], doc3["id"]],
+        },
+        headers=headers,
+    )
+
+    response = client.get("/applications", headers=headers)
+    assert response.status_code == 200
+    apps = response.json()
+    assert len(apps) >= 1
+    for app in apps:
+        assert app["centre_name"] == "Test"
 ```
 
 - [ ] **Step 2: Create application router with submit endpoint**
@@ -1033,7 +1023,7 @@ def test_get_application_blocks_other_operator(client, db_session):
     doc2 = upload_doc(client, headers_a, "fire_safety.pdf", "fire_safety")
     doc3 = upload_doc(client, headers_a, "floor_plan.pdf", "floor_plan")
 
-    client.post(
+    submit_resp = client.post(
         "/applications",
         json={
             "application_id": doc1["application_id"],
@@ -1046,17 +1036,15 @@ def test_get_application_blocks_other_operator(client, db_session):
         },
         headers=headers_a,
     )
+    app_id = submit_resp.json()["id"]
 
-    # Create and login as another operator (need to seed a second operator in conftest)
-    # For now, just verify alice's own filter works
-    response = client.get("/applications", headers=headers_a)
-    assert response.status_code == 200
-    apps = response.json()
-    assert len(apps) >= 1
-    for app in apps:
-        # all apps should be alice's
-        detail = client.get(f"/applications/{app['id']}", headers=headers_a)
-        assert detail.status_code == 200
+    # Login as charlie (second operator) and try to access alice's application
+    login = client.post("/auth/login", json={"username": "charlie", "role": "operator"})
+    headers_c = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    # Charlie should get 404 when trying to access alice's application
+    response = client.get(f"/applications/{app_id}", headers=headers_c)
+    assert response.status_code == 404
 
 
 def test_get_submission_history(client, db_session):
@@ -2050,7 +2038,57 @@ export default function SubmitApplicationPage() {
 }
 ```
 
-- [ ] **Step 4: Add route**
+- [ ] **Step 4: Write SubmitApplicationPage smoke test**
+
+```tsx
+// frontend/src/pages/SubmitApplicationPage.test.tsx
+
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import SubmitApplicationPage from './SubmitApplicationPage'
+
+vi.mock('../lib/api', () => ({ api: { post: vi.fn() } }))
+
+describe('SubmitApplicationPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders all form sections', () => {
+    render(
+      <MemoryRouter>
+        <SubmitApplicationPage />
+      </MemoryRouter>
+    )
+    expect(screen.getByText('Basic Details')).toBeInTheDocument()
+    expect(screen.getByText('Operations')).toBeInTheDocument()
+    expect(screen.getByText('Documents')).toBeInTheDocument()
+    expect(screen.getByText('Declarations')).toBeInTheDocument()
+  })
+
+  it('renders submit button disabled by default', () => {
+    render(
+      <MemoryRouter>
+        <SubmitApplicationPage />
+      </MemoryRouter>
+    )
+    const btn = screen.getByRole('button', { name: /submit application/i })
+    expect(btn).toBeDisabled()
+  })
+
+  it('shows progress indicator', () => {
+    render(
+      <MemoryRouter>
+        <SubmitApplicationPage />
+      </MemoryRouter>
+    )
+    expect(screen.getByText(/progress/i)).toBeInTheDocument()
+  })
+})
+```
+
+- [ ] **Step 5: Add route**
 
 ```tsx
 // frontend/src/routes.tsx — add the submit route
@@ -2066,15 +2104,15 @@ export const router = createBrowserRouter([
 ])
 ```
 
-- [ ] **Step 5: Run tests**
+- [ ] **Step 6: Run tests**
 
 Run: `cd frontend && npx vitest run`
 Expected: all tests PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/components/DocumentUploader.tsx frontend/src/components/ProgressIndicator.tsx frontend/src/pages/SubmitApplicationPage.tsx frontend/src/routes.tsx
+git add frontend/src/components/DocumentUploader.tsx frontend/src/components/ProgressIndicator.tsx frontend/src/pages/SubmitApplicationPage.tsx frontend/src/pages/SubmitApplicationPage.test.tsx frontend/src/routes.tsx
 git commit -m "feat: add submit application form with document upload and progress indicator"
 ```
 
@@ -2564,7 +2602,75 @@ export default function ResubmissionPage() {
 }
 ```
 
-- [ ] **Step 3: Add route**
+- [ ] **Step 3: Write ResubmissionPage smoke test**
+
+```tsx
+// frontend/src/pages/ResubmissionPage.test.tsx
+
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import ResubmissionPage from './ResubmissionPage'
+
+vi.mock('../lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }))
+
+import { api } from '../lib/api'
+
+describe('ResubmissionPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('shows feedback summary when feedback exists', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('/submissions')) {
+        return Promise.resolve({
+          data: [{
+            round_number: 1,
+            submitted_at: '2026-04-27T00:00:00Z',
+            form_data: {
+              basic_details: { centre_name: 'Test', operator_company_name: 'Co', uen: '123', contact_person: 'A', contact_email: 'a@b.com', contact_phone: '123' },
+              operations: { centre_address: 'Addr', type_of_service: 'Childcare', proposed_capacity: 10 },
+            },
+            documents: [],
+            feedback_items: [],
+          }],
+        })
+      }
+      return Promise.resolve({
+        data: {
+          id: 'app-1',
+          status: 'Pending Pre-Site Resubmission',
+          current_round: 1,
+          latest_submission: {
+            form_data: {
+              basic_details: { centre_name: 'Test', operator_company_name: 'Co', uen: '123', contact_person: 'A', contact_email: 'a@b.com', contact_phone: '123' },
+              operations: { centre_address: 'Addr', type_of_service: 'Childcare', proposed_capacity: 10 },
+            },
+            documents: [],
+          },
+          latest_feedback: [
+            { id: 'fb-1', target_type: 'field', section: 'basic_details', field_key: 'centre_name', document_id: null, comment: 'Please provide the registered name', created_by: 'bob' },
+          ],
+        },
+      })
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/operator/applications/app-1/resubmit']}>
+        <Routes>
+          <Route path="/operator/applications/:id/resubmit" element={<ResubmissionPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Officer Feedback')).toBeInTheDocument()
+    expect(screen.getByText('Please provide the registered name')).toBeInTheDocument()
+  })
+})
+```
+
+- [ ] **Step 4: Add route**
 
 ```tsx
 // frontend/src/routes.tsx — add the resubmit route
@@ -2575,15 +2681,15 @@ import ResubmissionPage from './pages/ResubmissionPage'
 { path: '/operator/applications/:id/resubmit', element: <ResubmissionPage /> },
 ```
 
-- [ ] **Step 4: Run tests**
+- [ ] **Step 5: Run tests**
 
 Run: `cd frontend && npx vitest run`
 Expected: all tests PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/src/components/FeedbackSummary.tsx frontend/src/pages/ResubmissionPage.tsx frontend/src/routes.tsx
+git add frontend/src/components/FeedbackSummary.tsx frontend/src/pages/ResubmissionPage.tsx frontend/src/pages/ResubmissionPage.test.tsx frontend/src/routes.tsx
 git commit -m "feat: add resubmission page with locked sections and document carry-forward"
 ```
 

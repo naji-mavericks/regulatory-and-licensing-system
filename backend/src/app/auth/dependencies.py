@@ -45,6 +45,8 @@ def _require_role(role: str):
                 detail="Insufficient permissions",
             )
         return user
+
+    _dep.__name__ = f"require_{role}"
     return _dep
 
 

@@ -252,3 +252,85 @@ def test_get_submission_history(client, db_session):
     assert data[0]["round_number"] == 1
     assert data[0]["form_data"] is not None
     assert len(data[0]["documents"]) == 3
+
+
+def test_resubmit_creates_new_round(client, db_session):
+    headers = get_operator_token(client, db_session)
+    doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
+    app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan", app_id)
+
+    form_data = {
+        "basic_details": {"centre_name": "Sunshine", "operator_company_name": "Co", "uen": "123", "contact_person": "A", "contact_email": "a@b.com", "contact_phone": "123"},
+        "operations": {"centre_address": "Addr", "type_of_service": "Childcare", "proposed_capacity": 10},
+        "declarations": {"compliance_confirmed": True},
+    }
+    client.post(
+        "/applications",
+        json={"application_id": app_id, "form_data": form_data, "document_ids": [doc1["id"], doc2["id"], doc3["id"]]},
+        headers=headers,
+    )
+
+    # Simulate resubmit with changed centre_name
+    new_doc = upload_doc(client, headers, "new_fire_safety.pdf", "fire_safety", app_id)
+    response = client.post(
+        f"/applications/{app_id}/resubmit",
+        json={
+            "form_data": {"basic_details": {"centre_name": "New Name"}},
+            "document_ids": [new_doc["id"]],
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "Pre-Site Resubmitted"
+    assert data["round_number"] == 2
+
+    # Verify merged form_data
+    detail = client.get(f"/applications/{app_id}", headers=headers)
+    form = detail.json()["latest_submission"]["form_data"]
+    assert form["basic_details"]["centre_name"] == "New Name"  # updated
+    assert form["basic_details"]["uen"] == "123"  # carried forward
+
+    # Verify history has 2 rounds
+    history = client.get(f"/applications/{app_id}/submissions", headers=headers)
+    assert len(history.json()) == 2
+
+
+def test_resubmit_carries_forward_unflagged_docs(client, db_session):
+    headers = get_operator_token(client, db_session)
+    doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
+    app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan", app_id)
+
+    form_data = {
+        "basic_details": {"centre_name": "Test", "operator_company_name": "Co", "uen": "123", "contact_person": "A", "contact_email": "a@b.com", "contact_phone": "123"},
+        "operations": {"centre_address": "Addr", "type_of_service": "Childcare", "proposed_capacity": 10},
+        "declarations": {"compliance_confirmed": True},
+    }
+    client.post(
+        "/applications",
+        json={"application_id": app_id, "form_data": form_data, "document_ids": [doc1["id"], doc2["id"], doc3["id"]]},
+        headers=headers,
+    )
+
+    # Resubmit replacing only fire_safety
+    new_fire = upload_doc(client, headers, "new_fire_safety.pdf", "fire_safety", app_id)
+    client.post(
+        f"/applications/{app_id}/resubmit",
+        json={"form_data": {}, "document_ids": [new_fire["id"]]},
+        headers=headers,
+    )
+
+    history = client.get(f"/applications/{app_id}/submissions", headers=headers)
+    rounds = history.json()
+    round2_docs = rounds[1]["documents"]
+    # Round 2 should have all 3 docs: new fire_safety + carried forward staff_qual and floor_plan
+    assert len(round2_docs) == 3
+    doc_types = {d["doc_type"] for d in round2_docs}
+    assert doc_types == {"staff_qualification", "fire_safety", "floor_plan"}
+    # The fire_safety in round 2 should be the new one
+    fire_doc = [d for d in round2_docs if d["doc_type"] == "fire_safety"][0]
+    assert fire_doc["filename"] == "new_fire_safety.pdf"

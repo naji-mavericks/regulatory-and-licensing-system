@@ -298,3 +298,104 @@ def get_submissions(
         }
         for sub in submissions
     ]
+
+
+@router.post("/{application_id}/resubmit", status_code=status.HTTP_201_CREATED)
+def resubmit_application(
+    application_id: str,
+    body: dict,
+    user: Annotated[dict, Depends(require_operator)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    application = db.query(Application).filter(
+        Application.id == uuid.UUID(application_id),
+        Application.operator_id == uuid.UUID(user["sub"]),
+    ).first()
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    previous_submission = (
+        db.query(Submission)
+        .filter(Submission.application_id == application.id)
+        .order_by(Submission.round_number.desc())
+        .first()
+    )
+    if previous_submission is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No previous submission to resubmit",
+        )
+
+    partial_form_data = body.get("form_data", {})
+    new_document_ids = body.get("document_ids", [])
+
+    # Merge form_data: start from previous, overlay new values
+    merged_form = {**previous_submission.form_data}
+    for section, fields in partial_form_data.items():
+        if section not in merged_form:
+            merged_form[section] = {}
+        if isinstance(fields, dict):
+            merged_form[section] = {**merged_form[section], **fields}
+
+    # Create new submission round
+    new_round_number = application.current_round + 1
+    new_submission = Submission(
+        application_id=application.id,
+        round_number=new_round_number,
+        form_data=merged_form,
+    )
+    db.add(new_submission)
+    db.commit()
+    db.refresh(new_submission)
+
+    # Handle documents: carry forward unflagged, replace flagged
+    new_doc_uuids = [uuid.UUID(d) for d in new_document_ids]
+    new_docs_requested = db.query(Document).filter(Document.id.in_(new_doc_uuids)).all()
+    new_doc_types = {d.doc_type for d in new_docs_requested}
+
+    for prev_doc in previous_submission.documents:
+        if prev_doc.doc_type not in new_doc_types:
+            # Carry forward: create a new reference (not a new file)
+            carried = Document(
+                application_id=application.id,
+                submission_id=new_submission.id,
+                doc_type=prev_doc.doc_type,
+                filename=prev_doc.filename,
+                file_path=prev_doc.file_path,
+                ai_status=prev_doc.ai_status,
+                ai_details=prev_doc.ai_details,
+            )
+            db.add(carried)
+
+    # Attach new documents to the new submission
+    for doc in new_docs_requested:
+        doc.submission_id = new_submission.id
+
+    # Update application
+    application.current_round = new_round_number
+    application.status = "Pre-Site Resubmitted"
+    db.commit()
+    db.refresh(new_submission)
+
+    return {
+        "id": str(application.id),
+        "status": OPERATOR_STATUS_MAP.get(application.status, application.status),
+        "round_number": new_submission.round_number,
+        "latest_submission": {
+            "id": str(new_submission.id),
+            "form_data": new_submission.form_data,
+            "documents": [
+                {
+                    "id": str(d.id),
+                    "doc_type": d.doc_type,
+                    "filename": d.filename,
+                    "ai_status": d.ai_status,
+                    "ai_details": d.ai_details,
+                }
+                for d in new_submission.documents
+            ],
+        },
+    }

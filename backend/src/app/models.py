@@ -124,3 +124,4 @@ class FeedbackItem(Base):
     )
 
     submission: Mapped["Submission"] = relationship(back_populates="feedback_items")
+    document: Mapped["Document | None"] = relationship()

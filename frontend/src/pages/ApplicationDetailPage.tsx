@@ -1,6 +1,7 @@
 import React from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api } from '../lib/api'
+import StatusBadge from '../components/StatusBadge'
 
 interface ApplicationDetail {
   id: string
@@ -56,7 +57,7 @@ export default function ApplicationDetailPage() {
             {app.latest_submission?.form_data?.basic_details?.centre_name as string || 'Application'}
           </h1>
         </div>
-        <span className="text-sm bg-slate-100 px-3 py-1 rounded">{app.status}</span>
+        <StatusBadge status={app.status} />
       </div>
 
       {needsResubmission && (

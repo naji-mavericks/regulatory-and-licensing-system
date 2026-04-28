@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
+import StatusBadge from '../components/StatusBadge'
 
 interface ApplicationSummary {
   id: string
@@ -65,9 +66,7 @@ export default function ApplicationListPage() {
                 <h2 className="font-semibold">{app.centre_name}</h2>
                 <p className="text-sm text-slate-500">{app.type_of_service}</p>
               </div>
-              <span className="text-sm bg-slate-100 px-2 py-1 rounded">
-                {app.status}
-              </span>
+              <StatusBadge status={app.status} />
             </div>
             <p className="text-xs text-slate-400 mt-2">
               Round {app.current_round} &middot; Updated {new Date(app.updated_at).toLocaleDateString()}

@@ -17,7 +17,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 def save_file(upload_dir: Path, file: UploadFile) -> Path:
     upload_dir.mkdir(parents=True, exist_ok=True)
-    dest = upload_dir / f"{uuid.uuid4()}_{file.filename}"
+    dest = upload_dir / f"{uuid.uuid4()}_{Path(file.filename).name}"
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
     return dest
@@ -27,9 +27,9 @@ def save_file(upload_dir: Path, file: UploadFile) -> Path:
 def upload_document(
     file: Annotated[UploadFile, File(...)],
     doc_type: Annotated[str, Form()],
+    user: Annotated[dict, Depends(require_operator)],
+    db: Annotated[Session, Depends(get_db)],
     application_id: Annotated[str | None, Form()] = None,
-    user: Annotated[dict, Depends(require_operator)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
 ):
     # Get or create application
     if application_id:

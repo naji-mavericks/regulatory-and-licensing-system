@@ -1,6 +1,8 @@
 import io
 from uuid import UUID
 
+import pytest
+
 
 def get_operator_token(client, db_session):
     """Helper: login as operator and return auth header."""
@@ -54,9 +56,9 @@ def test_upload_rejects_missing_auth(client, db_session):
     assert response.status_code == 403
 
 
+@pytest.mark.skip(reason="upload_dir not yet injectable in test context")
 def test_uploaded_file_saved_to_disk(client, db_session, tmp_path):
     """Document file is written to upload_dir."""
-    pass  # tested after upload_dir is configurable
 
 
 def test_first_upload_creates_application_row(client, db_session):

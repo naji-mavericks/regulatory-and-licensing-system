@@ -14,10 +14,12 @@ interface ApplicationSummary {
 export default function ApplicationListPage() {
   const [apps, setApps] = React.useState<ApplicationSummary[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     api.get('/applications')
       .then(res => setApps(res.data))
+      .catch(() => setError('Failed to load applications.'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -35,7 +37,13 @@ export default function ApplicationListPage() {
 
       {loading && <p className="text-slate-500">Loading...</p>}
 
-      {!loading && apps.length === 0 && (
+      {error && (
+        <div className="text-center py-12 border rounded-lg border-red-200 bg-red-50">
+          <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && apps.length === 0 && (
         <div className="text-center py-12 border rounded-lg">
           <p className="text-slate-500 mb-4">No applications yet</p>
           <Link to="/operator/apply" className="text-blue-600 underline">
@@ -44,6 +52,7 @@ export default function ApplicationListPage() {
         </div>
       )}
 
+      {!loading && !error && (
       <div className="flex flex-col gap-4">
         {apps.map(app => (
           <Link
@@ -66,6 +75,7 @@ export default function ApplicationListPage() {
           </Link>
         ))}
       </div>
+      )}
     </div>
   )
 }

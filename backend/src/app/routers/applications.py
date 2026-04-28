@@ -260,7 +260,10 @@ def get_submissions(
 
     submissions = (
         db.query(Submission)
-        .options(selectinload(Submission.documents), selectinload(Submission.feedback_items))
+        .options(
+            selectinload(Submission.documents),
+            selectinload(Submission.feedback_items),
+        )
         .filter(Submission.application_id == application.id)
         .order_by(Submission.round_number)
         .all()
@@ -317,6 +320,12 @@ def resubmit_application(
             detail="Application not found",
         )
 
+    if application.status != "Pending Pre-Site Resubmission":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Application is not in a state that allows resubmission",
+        )
+
     previous_submission = (
         db.query(Submission)
         .filter(Submission.application_id == application.id)
@@ -353,7 +362,14 @@ def resubmit_application(
 
     # Handle documents: carry forward unflagged, replace flagged
     new_doc_uuids = [uuid.UUID(d) for d in new_document_ids]
-    new_docs_requested = db.query(Document).filter(Document.id.in_(new_doc_uuids)).all()
+    new_docs_requested = (
+        db.query(Document)
+        .filter(
+            Document.id.in_(new_doc_uuids),
+            Document.application_id == application.id,
+        )
+        .all()
+    )
     new_doc_types = {d.doc_type for d in new_docs_requested}
 
     for prev_doc in previous_submission.documents:

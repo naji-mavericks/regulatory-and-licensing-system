@@ -73,7 +73,7 @@ describe('ApplicationDetailPage', () => {
   it('renders field labels and values for all sections', async () => {
     renderPage()
     expect(await screen.findByText('Centre Name')).toBeInTheDocument()
-    expect(screen.getByText('Test Centre')).toBeInTheDocument()
+    expect(screen.getAllByText('Test Centre').length).toBeGreaterThanOrEqual(2)
     expect(screen.getByText('UEN')).toBeInTheDocument()
     expect(screen.getByText('202312345A')).toBeInTheDocument()
     expect(screen.getByText('Centre Address')).toBeInTheDocument()
@@ -97,7 +97,7 @@ describe('ApplicationDetailPage', () => {
 
   it('does not show alert banner when there is no feedback', async () => {
     renderPage()
-    await screen.findByText('Test Centre')
+    await screen.findByRole('heading', { name: 'Test Centre' })
     expect(screen.queryByText(/Officer feedback received/)).not.toBeInTheDocument()
   })
 
@@ -178,7 +178,7 @@ describe('ApplicationDetailPage', () => {
       },
     })
     renderPage()
-    await screen.findByText('Test Centre')
+    await screen.findByRole('heading', { name: 'Test Centre' })
     expect(screen.queryByRole('link', { name: /Resubmit Application/i })).not.toBeInTheDocument()
   })
 })

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, String, Uuid
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
 
@@ -20,5 +20,4 @@ class User(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
-    # applications relationship added in Task 2 when Application model is defined
-    # applications: Mapped[list["Application"]] = relationship(back_populates="operator")
+    # applications: Mapped[list["Application"]] added in Task 2

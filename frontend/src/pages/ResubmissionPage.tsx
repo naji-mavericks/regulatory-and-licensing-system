@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { api } from '../lib/api'
 import FeedbackSummary from '../components/FeedbackSummary'
 import DocumentUploader from '../components/DocumentUploader'
+import { FIELD_LABELS, SECTION_LABELS } from '../lib/formLabels'
 
 interface FeedbackItem {
   id: string
@@ -28,25 +29,6 @@ interface SubmissionRound {
   form_data: Record<string, Record<string, unknown>>
   documents: UploadedDoc[]
   feedback_items: FeedbackItem[]
-}
-
-const FIELD_LABELS: Record<string, string> = {
-  centre_name: 'Centre Name',
-  operator_company_name: 'Operator / Company Name',
-  uen: 'UEN',
-  contact_person: 'Contact Person',
-  contact_email: 'Contact Email',
-  contact_phone: 'Contact Phone',
-  centre_address: 'Centre Address',
-  type_of_service: 'Type of Service',
-  proposed_capacity: 'Proposed Capacity',
-}
-
-const SECTION_LABELS: Record<string, string> = {
-  basic_details: 'Basic Details',
-  operations: 'Operations',
-  documents: 'Documents',
-  declarations: 'Declarations',
 }
 
 export default function ResubmissionPage() {

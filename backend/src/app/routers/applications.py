@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth.dependencies import require_operator
 from app.database.session import get_db
-from app.models import Application, Document, Submission
+from app.models import Application, Document, FeedbackItem, Submission
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -167,4 +167,134 @@ def list_applications(
             "updated_at": app.updated_at.isoformat(),
         }
         for app in applications
+    ]
+
+
+@router.get("/{application_id}")
+def get_application(
+    application_id: str,
+    user: Annotated[dict, Depends(require_operator)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    application = db.query(Application).filter(
+        Application.id == uuid.UUID(application_id),
+        Application.operator_id == uuid.UUID(user["sub"]),
+    ).first()
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    latest_sub = (
+        db.query(Submission)
+        .filter(Submission.application_id == application.id)
+        .order_by(Submission.round_number.desc())
+        .first()
+    )
+    latest_feedback = (
+        db.query(FeedbackItem)
+        .filter(FeedbackItem.submission_id == latest_sub.id)
+        .all()
+        if latest_sub
+        else []
+    )
+
+    docs = (
+        db.query(Document)
+        .filter(Document.submission_id == latest_sub.id)
+        .all()
+        if latest_sub
+        else []
+    )
+
+    return {
+        "id": str(application.id),
+        "status": OPERATOR_STATUS_MAP.get(application.status, application.status),
+        "current_round": application.current_round,
+        "latest_submission": {
+            "id": str(latest_sub.id),
+            "form_data": latest_sub.form_data,
+            "documents": [
+                {
+                    "id": str(d.id),
+                    "doc_type": d.doc_type,
+                    "filename": d.filename,
+                    "ai_status": d.ai_status,
+                    "ai_details": d.ai_details,
+                }
+                for d in docs
+            ],
+        } if latest_sub else None,
+        "latest_feedback": [
+            {
+                "id": str(f.id),
+                "target_type": f.target_type,
+                "section": f.section,
+                "field_key": f.field_key,
+                "document_id": str(f.document_id) if f.document_id else None,
+                "comment": f.comment,
+                "created_by": f.created_by,
+                "created_at": f.created_at.isoformat(),
+            }
+            for f in latest_feedback
+        ],
+    }
+
+
+@router.get("/{application_id}/submissions")
+def get_submissions(
+    application_id: str,
+    user: Annotated[dict, Depends(require_operator)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    application = db.query(Application).filter(
+        Application.id == uuid.UUID(application_id),
+        Application.operator_id == uuid.UUID(user["sub"]),
+    ).first()
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    submissions = (
+        db.query(Submission)
+        .options(selectinload(Submission.documents), selectinload(Submission.feedback_items))
+        .filter(Submission.application_id == application.id)
+        .order_by(Submission.round_number)
+        .all()
+    )
+
+    return [
+        {
+            "id": str(sub.id),
+            "round_number": sub.round_number,
+            "submitted_at": sub.submitted_at.isoformat(),
+            "form_data": sub.form_data,
+            "documents": [
+                {
+                    "id": str(d.id),
+                    "doc_type": d.doc_type,
+                    "filename": d.filename,
+                    "ai_status": d.ai_status,
+                    "ai_details": d.ai_details,
+                }
+                for d in sub.documents
+            ],
+            "feedback_items": [
+                {
+                    "id": str(f.id),
+                    "target_type": f.target_type,
+                    "section": f.section,
+                    "field_key": f.field_key,
+                    "document_id": str(f.document_id) if f.document_id else None,
+                    "comment": f.comment,
+                    "created_by": f.created_by,
+                    "created_at": f.created_at.isoformat(),
+                }
+                for f in sub.feedback_items
+            ],
+        }
+        for sub in submissions
     ]

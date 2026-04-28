@@ -158,3 +158,97 @@ def test_list_applications_returns_only_own(client, db_session):
     assert len(apps) >= 1
     for app in apps:
         assert app["centre_name"] == "Test"
+
+
+def test_get_application_returns_operator_label(client, db_session):
+    """After submit, GET returns operator-facing status."""
+    headers = get_operator_token(client, db_session)
+    doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
+    app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan", app_id)
+
+    client.post(
+        "/applications",
+        json={
+            "application_id": app_id,
+            "form_data": {
+                "basic_details": {"centre_name": "Test", "operator_company_name": "Co", "uen": "123", "contact_person": "A", "contact_email": "a@b.com", "contact_phone": "123"},
+                "operations": {"centre_address": "Addr", "type_of_service": "Childcare", "proposed_capacity": 10},
+                "declarations": {"compliance_confirmed": True},
+            },
+            "document_ids": [doc1["id"], doc2["id"], doc3["id"]],
+        },
+        headers=headers,
+    )
+
+    response = client.get(f"/applications/{app_id}", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "Submitted"
+    assert data["current_round"] == 1
+    assert "latest_submission" in data
+    assert data["latest_submission"]["form_data"] is not None
+
+
+def test_get_application_blocks_other_operator(client, db_session):
+    """Operator A cannot see Operator B's application."""
+    headers_a = get_operator_token(client, db_session)  # alice
+    doc1 = upload_doc(client, headers_a, "staff_cert.pdf", "staff_qualification")
+    app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers_a, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers_a, "floor_plan.pdf", "floor_plan", app_id)
+
+    submit_resp = client.post(
+        "/applications",
+        json={
+            "application_id": app_id,
+            "form_data": {
+                "basic_details": {"centre_name": "Test", "operator_company_name": "Co", "uen": "123", "contact_person": "A", "contact_email": "a@b.com", "contact_phone": "123"},
+                "operations": {"centre_address": "Addr", "type_of_service": "Childcare", "proposed_capacity": 10},
+                "declarations": {"compliance_confirmed": True},
+            },
+            "document_ids": [doc1["id"], doc2["id"], doc3["id"]],
+        },
+        headers=headers_a,
+    )
+    app_id = submit_resp.json()["id"]
+
+    # Login as charlie (second operator) and try to access alice's application
+    login = client.post("/auth/login", json={"username": "charlie", "role": "operator"})
+    headers_c = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    # Charlie should get 404 when trying to access alice's application
+    response = client.get(f"/applications/{app_id}", headers=headers_c)
+    assert response.status_code == 404
+
+
+def test_get_submission_history(client, db_session):
+    headers = get_operator_token(client, db_session)
+    doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
+    app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan", app_id)
+
+    client.post(
+        "/applications",
+        json={
+            "application_id": app_id,
+            "form_data": {
+                "basic_details": {"centre_name": "Test", "operator_company_name": "Co", "uen": "123", "contact_person": "A", "contact_email": "a@b.com", "contact_phone": "123"},
+                "operations": {"centre_address": "Addr", "type_of_service": "Childcare", "proposed_capacity": 10},
+                "declarations": {"compliance_confirmed": True},
+            },
+            "document_ids": [doc1["id"], doc2["id"], doc3["id"]],
+        },
+        headers=headers,
+    )
+
+    response = client.get(f"/applications/{app_id}/submissions", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["round_number"] == 1
+    assert data[0]["form_data"] is not None
+    assert len(data[0]["documents"]) == 3

@@ -148,13 +148,13 @@ def list_applications(
             "id": str(app.id),
             "status": OPERATOR_STATUS_MAP.get(app.status, app.status),
             "centre_name": (
-                app.submissions[0].form_data
+                app.submissions[-1].form_data
                 .get("basic_details", {})
                 .get("centre_name", "")
                 if app.submissions else ""
             ),
             "type_of_service": (
-                app.submissions[0].form_data
+                app.submissions[-1].form_data
                 .get("operations", {})
                 .get("type_of_service", "")
                 if app.submissions else ""

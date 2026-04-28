@@ -101,6 +101,9 @@ class Document(Base):
     submission: Mapped["Submission | None"] = relationship(
         back_populates="documents", foreign_keys=[submission_id]
     )
+    feedback_items: Mapped[list["FeedbackItem"]] = relationship(
+        back_populates="document"
+    )
 
 
 class FeedbackItem(Base):
@@ -124,4 +127,4 @@ class FeedbackItem(Base):
     )
 
     submission: Mapped["Submission"] = relationship(back_populates="feedback_items")
-    document: Mapped["Document | None"] = relationship()
+    document: Mapped["Document | None"] = relationship(back_populates="feedback_items")

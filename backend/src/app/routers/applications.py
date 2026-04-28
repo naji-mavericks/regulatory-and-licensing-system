@@ -81,9 +81,12 @@ def submit_application(
             detail="; ".join(errors),
         )
 
-    # Verify all required doc types present
+    # Verify all required doc types present (scoped to this application)
     doc_uuids = [uuid.UUID(d) for d in document_ids]
-    docs = db.query(Document).filter(Document.id.in_(doc_uuids)).all()
+    docs = db.query(Document).filter(
+        Document.id.in_(doc_uuids),
+        Document.application_id == application.id,
+    ).all()
     doc_types_present = {d.doc_type for d in docs}
     missing = REQUIRED_DOC_TYPES - doc_types_present
     if missing:
@@ -102,9 +105,10 @@ def submit_application(
     db.commit()
     db.refresh(submission)
 
-    # Link documents to submission
+    # Link documents to submission and mark application as received
     for doc in docs:
         doc.submission_id = submission.id
+    application.status = "Application Received"
     db.commit()
 
     return {

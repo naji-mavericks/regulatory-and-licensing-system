@@ -3,13 +3,16 @@ def get_operator_token(client, db_session):
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
-def upload_doc(client, headers, filename, doc_type):
+def upload_doc(client, headers, filename, doc_type, application_id=None):
     """Helper: upload a document and return the response data."""
     import io
+    data = {"doc_type": doc_type}
+    if application_id:
+        data["application_id"] = application_id
     response = client.post(
         "/documents/upload",
         files={"file": (filename, io.BytesIO(b"content"), "application/pdf")},
-        data={"doc_type": doc_type},
+        data=data,
         headers=headers,
     )
     assert response.status_code == 201
@@ -19,9 +22,9 @@ def upload_doc(client, headers, filename, doc_type):
 def test_submit_application_creates_submission(client, db_session):
     headers = get_operator_token(client, db_session)
     doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
-    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety")
-    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan")
     app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan", app_id)
 
     form_data = {
         "basic_details": {
@@ -88,8 +91,9 @@ def test_submit_rejects_missing_doc_type(client, db_session):
 def test_submit_rejects_missing_fields(client, db_session):
     headers = get_operator_token(client, db_session)
     doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
-    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety")
-    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan")
+    app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan", app_id)
 
     response = client.post(
         "/applications",
@@ -119,8 +123,9 @@ def test_list_applications_returns_only_own(client, db_session):
     """Operator only sees their own applications."""
     headers = get_operator_token(client, db_session)
     doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
-    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety")
-    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan")
+    app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan", app_id)
 
     client.post(
         "/applications",

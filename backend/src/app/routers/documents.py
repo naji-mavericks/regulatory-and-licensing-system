@@ -34,8 +34,8 @@ def upload_document(
     # Get or create application
     if application_id:
         application = db.query(Application).filter(
-            Application.id == application_id,
-            Application.operator_id == user["sub"],
+            Application.id == uuid.UUID(application_id),
+            Application.operator_id == uuid.UUID(user["sub"]),
         ).first()
         if application is None:
             raise HTTPException(

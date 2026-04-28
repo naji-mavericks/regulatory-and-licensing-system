@@ -1,0 +1,17 @@
+const STATUS_CLASSES: Record<string, string> = {
+  'Application Received': 'bg-blue-50 text-blue-700',
+  'Under Review': 'bg-blue-50 text-blue-700',
+  'Pending Pre-Site Resubmission': 'bg-amber-50 text-amber-700',
+  'Pre-Site Resubmitted': 'bg-purple-50 text-purple-700',
+  'Approved': 'bg-green-50 text-green-700',
+  'Rejected': 'bg-red-50 text-red-700',
+}
+
+export default function StatusBadge({ status }: { status: string }) {
+  const classes = STATUS_CLASSES[status] ?? 'bg-slate-100 text-slate-600'
+  return (
+    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${classes}`}>
+      {status}
+    </span>
+  )
+}

@@ -8,6 +8,7 @@ from app.config import settings
 from app.database.base import Base
 
 # Import models here as they are created so autogenerate detects them:
+from app.models import User  # noqa: F401
 # from app.applications.models import Application  (added in UC1 plan)
 
 config = context.config

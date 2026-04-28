@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import ApplicationListPage from './ApplicationListPage'
 
@@ -58,5 +58,32 @@ describe('ApplicationListPage', () => {
     )
     const link = screen.getByRole('link', { name: /new application/i })
     expect(link).toHaveAttribute('href', '/operator/apply')
+  })
+
+  it('shows error message when API call fails', async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error('Network error'))
+    render(
+      <MemoryRouter>
+        <ApplicationListPage />
+      </MemoryRouter>
+    )
+    expect(
+      await screen.findByText(/failed to load applications/i)
+    ).toBeInTheDocument()
+  })
+
+  it('shows loading indicator while fetching', async () => {
+    const { promise, resolve } = Promise.withResolvers<{ data: never[] }>()
+    vi.mocked(api.get).mockReturnValueOnce(promise as any)
+    render(
+      <MemoryRouter>
+        <ApplicationListPage />
+      </MemoryRouter>
+    )
+    expect(screen.getByText(/loading/i)).toBeInTheDocument()
+    resolve({ data: [] })
+    await waitFor(() => {
+      expect(screen.queryByText(/loading/i)).not.toBeInTheDocument()
+    })
   })
 })

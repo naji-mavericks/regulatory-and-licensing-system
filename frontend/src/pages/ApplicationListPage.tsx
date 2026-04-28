@@ -53,7 +53,7 @@ export default function ApplicationListPage() {
       )}
 
       {!loading && !error && (
-      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
         {apps.map(app => (
           <Link
             key={app.id}

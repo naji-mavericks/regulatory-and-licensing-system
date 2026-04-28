@@ -29,12 +29,10 @@ export default function DocumentUploader({
   const [uploaded, setUploaded] = React.useState<UploadedDoc | null>(null)
   const [uploading, setUploading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [dragOver, setDragOver] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
+  const handleFile = async (file: File) => {
     setUploading(true)
     setError(null)
 
@@ -60,6 +58,28 @@ export default function DocumentUploader({
     }
   }
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFile(file)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFile(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+  }
+
   return (
     <div className="border rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
@@ -74,7 +94,9 @@ export default function DocumentUploader({
                 : 'bg-red-100 text-red-700'
             }`}
           >
-            {uploaded.ai_status === 'pass' ? '✓ Pass' : '✗ Issues found'}
+            {uploaded.ai_status === 'pass'
+              ? '✓ Pass'
+              : `✗ ${uploaded.ai_details?.reason || 'Issues found'}`}
           </span>
         )}
         {uploading && (
@@ -97,8 +119,15 @@ export default function DocumentUploader({
         </div>
       ) : (
         <div
-          className="border-2 border-dashed border-slate-300 rounded p-6 text-center cursor-pointer hover:border-slate-400"
+          className={`border-2 border-dashed rounded p-6 text-center cursor-pointer transition-colors ${
+            dragOver
+              ? 'border-blue-400 bg-blue-50'
+              : 'border-slate-300 hover:border-slate-400'
+          }`}
           onClick={() => fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
         >
           <p className="text-sm text-slate-500">
             Click or drag to upload
@@ -110,7 +139,7 @@ export default function DocumentUploader({
         ref={fileInputRef}
         type="file"
         className="hidden"
-        onChange={handleFile}
+        onChange={handleInputChange}
         accept=".pdf,.jpg,.jpeg,.png"
       />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}

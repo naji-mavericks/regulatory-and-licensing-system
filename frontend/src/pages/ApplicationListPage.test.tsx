@@ -73,8 +73,9 @@ describe('ApplicationListPage', () => {
   })
 
   it('shows loading indicator while fetching', async () => {
-    const { promise, resolve } = Promise.withResolvers<{ data: never[] }>()
-    vi.mocked(api.get).mockReturnValueOnce(promise as any)
+    const { promise, resolve } =
+      Promise.withResolvers<{ data: never[] }>()
+    vi.mocked(api.get).mockReturnValueOnce(promise)
     render(
       <MemoryRouter>
         <ApplicationListPage />

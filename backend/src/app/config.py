@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-in-prod"
     jwt_algorithm: str = "HS256"
     jwt_expiry_minutes: int = 60
+    upload_dir: str = "./uploads"
 
     model_config = {"env_file": ".env"}
 

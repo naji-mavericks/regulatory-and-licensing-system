@@ -19,11 +19,11 @@ const formSchema = z.object({
   operations: z.object({
     centre_address: z.string().min(1, 'Required'),
     type_of_service: z.enum(['Student Care', 'Childcare']),
-    proposed_capacity: z.number({ coerce: true }).min(1),
+    proposed_capacity: z.number().min(1),
   }),
   declarations: z.object({
     compliance_confirmed: z.literal(true, {
-      errorMap: () => ({ message: 'You must confirm the declaration' }),
+      message: 'You must confirm the declaration',
     }),
   }),
 })
@@ -64,11 +64,11 @@ export default function SubmitApplicationPage() {
   const sections = [
     {
       name: 'Basic Details',
-      complete: Object.values(watchedValues.basic_details).every(v => v !== '' && v !== undefined),
+      complete: Object.values(watchedValues.basic_details ?? {}).every(v => v !== '' && v !== undefined),
     },
     {
       name: 'Operations',
-      complete: Object.values(watchedValues.operations).every(v => v !== '' && v !== undefined),
+      complete: Object.values(watchedValues.operations ?? {}).every(v => v !== '' && v !== undefined),
     },
     {
       name: 'Documents',
@@ -78,7 +78,7 @@ export default function SubmitApplicationPage() {
     },
     {
       name: 'Declarations',
-      complete: watchedValues.declarations.compliance_confirmed === true,
+      complete: watchedValues.declarations?.compliance_confirmed === true,
     },
   ]
 

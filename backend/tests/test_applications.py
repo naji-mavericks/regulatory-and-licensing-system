@@ -451,3 +451,84 @@ def test_get_application_officer_not_filtered_by_ownership(client, db_session):
     headers_bob = get_officer_token(client)
     response = client.get(f"/applications/{app_id}", headers=headers_bob)
     assert response.status_code == 200
+
+
+def test_feedback_happy_path_creates_items_and_transitions(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+    # Transition to Under Review first (valid from Application Received)
+    _set_app_status(db_session, app_id, "Under Review")
+    headers_bob = get_officer_token(client)
+
+    response = client.post(
+        f"/applications/{app_id}/feedback",
+        json={
+            "feedback_items": [
+                {
+                    "target_type": "field",
+                    "section": "basic_details",
+                    "field_key": "uen",
+                    "document_id": None,
+                    "comment": "Please provide correct UEN.",
+                }
+            ],
+            "new_status": "Pending Pre-Site Resubmission",
+        },
+        headers=headers_bob,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "Pending Pre-Site Resubmission"
+    assert len(data["feedback_items"]) == 1
+    assert data["feedback_items"][0]["field_key"] == "uen"
+    assert data["feedback_items"][0]["created_by"] == "bob"
+
+    # Verify application status updated
+    detail = client.get(f"/applications/{app_id}", headers=headers_bob)
+    assert detail.json()["status"] == "Pending Pre-Site Resubmission"
+
+
+def test_feedback_empty_items_returns_400(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+    _set_app_status(db_session, app_id, "Under Review")
+    headers_bob = get_officer_token(client)
+
+    response = client.post(
+        f"/applications/{app_id}/feedback",
+        json={"feedback_items": [], "new_status": "Pending Pre-Site Resubmission"},
+        headers=headers_bob,
+    )
+    assert response.status_code == 400
+
+
+def test_feedback_invalid_transition_returns_409(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+    headers_bob = get_officer_token(client)
+
+    response = client.post(
+        f"/applications/{app_id}/feedback",
+        json={
+            "feedback_items": [
+                {"target_type": "field", "section": "basic_details",
+                 "field_key": "uen", "document_id": None, "comment": "Fix UEN."}
+            ],
+            "new_status": "Approved",  # invalid from "Application Received"
+        },
+        headers=headers_bob,
+    )
+    assert response.status_code == 409
+    assert "Invalid status transition" in response.json()["detail"]
+
+
+def test_feedback_requires_officer_role(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+
+    response = client.post(
+        f"/applications/{app_id}/feedback",
+        json={"feedback_items": [], "new_status": "Under Review"},
+        headers=headers_alice,
+    )
+    assert response.status_code == 403

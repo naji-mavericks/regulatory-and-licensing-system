@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.auth.dependencies import get_current_user, require_officer, require_operator
 from app.database.session import get_db
 from app.models import Application, Document, FeedbackItem, Submission, User
+from app.services.notifications import notify
+from app.services.status_machine import InvalidTransitionError, transition
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -476,6 +478,11 @@ def resubmit_application(
     db.commit()
     db.refresh(new_submission)
 
+    notify(
+        "officer",
+        f"Application {application.id} resubmitted (Round {new_round_number}). Ready for review.",
+    )
+
     return {
         "id": str(application.id),
         "status": OPERATOR_STATUS_MAP.get(application.status, application.status),
@@ -494,4 +501,112 @@ def resubmit_application(
                 for d in new_submission.documents
             ],
         },
+    }
+
+
+@router.post("/{application_id}/feedback", status_code=status.HTTP_201_CREATED)
+def submit_feedback(
+    application_id: str,
+    body: dict,
+    user: Annotated[dict, Depends(require_officer)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    application = db.query(Application).filter(
+        Application.id == uuid.UUID(application_id)
+    ).first()
+    if application is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    feedback_items_data = body.get("feedback_items", [])
+    new_status = body.get("new_status")
+
+    if not feedback_items_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="feedback_items must be non-empty")
+    if not new_status:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="new_status is required")
+
+    valid_sections = {"basic_details", "operations", "declarations"}
+    for item in feedback_items_data:
+        target_type = item.get("target_type")
+        section = item.get("section")
+        field_key = item.get("field_key")
+        document_id = item.get("document_id")
+        comment = item.get("comment", "")
+
+        if target_type not in ("field", "document"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="target_type must be 'field' or 'document'")
+        if not comment:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="comment must be non-empty")
+
+        if target_type == "field":
+            if not field_key:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="field_key required for field feedback")
+            if document_id is not None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="document_id must be null for field feedback")
+            if section not in valid_sections:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"section must be one of {valid_sections}")
+        else:
+            if not document_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="document_id required for document feedback")
+            if field_key is not None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="field_key must be null for document feedback")
+            if section != "documents":
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="section must be 'documents' for document feedback")
+            doc = db.query(Document).filter(
+                Document.id == uuid.UUID(document_id),
+                Document.application_id == application.id,
+            ).first()
+            if doc is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Document {document_id} not found in this application")
+
+    try:
+        transition(application.status, new_status)
+    except InvalidTransitionError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    latest_sub = (
+        db.query(Submission)
+        .filter(Submission.application_id == application.id)
+        .order_by(Submission.round_number.desc())
+        .first()
+    )
+    if latest_sub is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No submission found")
+
+    created_items = []
+    for item in feedback_items_data:
+        fi = FeedbackItem(
+            submission_id=latest_sub.id,
+            target_type=item["target_type"],
+            section=item["section"],
+            field_key=item.get("field_key"),
+            document_id=uuid.UUID(item["document_id"]) if item.get("document_id") else None,
+            comment=item["comment"],
+            created_by=user.get("username", "officer"),
+        )
+        db.add(fi)
+        created_items.append(fi)
+
+    application.status = new_status
+    db.commit()
+    for fi in created_items:
+        db.refresh(fi)
+
+    notify("operator", f"Application {application.id} updated to '{new_status}'. Please log in to review officer feedback.")
+
+    return {
+        "application_id": str(application.id),
+        "status": new_status,
+        "feedback_items": [
+            {
+                "id": str(fi.id),
+                "target_type": fi.target_type,
+                "section": fi.section,
+                "field_key": fi.field_key,
+                "comment": fi.comment,
+                "created_by": fi.created_by,
+                "created_at": fi.created_at.isoformat(),
+            }
+            for fi in created_items
+        ],
     }

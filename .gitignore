@@ -211,3 +211,5 @@ __marimo__/
 # Project-specific
 uploads/
 test.db
+
+node_modules

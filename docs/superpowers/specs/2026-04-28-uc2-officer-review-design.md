@@ -14,8 +14,8 @@ The implementation adds:
 - Role-branching to existing application endpoints
 - Two new officer-only endpoints (feedback, status transition)
 - A state machine and notification stub as isolated service modules
-- Three new frontend pages behind `/officer/` routes
-- A shared `ApplicationSections` read-only display component
+- `OfficerLayout` sidebar shell + three new frontend pages behind `/officer/` routes
+- A shared `ApplicationSections` read-only display component (extracts inline rendering from the already-redesigned `ApplicationDetailPage.tsx`)
 - Auth changes: role derived from DB, dummy password field on login
 
 ---
@@ -192,25 +192,54 @@ def notify(recipient_role: str, message: str) -> None:
 
 ## Frontend
 
+### `OfficerLayout`
+
+**File:** `components/OfficerLayout.tsx`
+
+Sidebar layout shell for `/officer` routes — mirrors `OperatorLayout` structure. Nav links: "Applications" (`/officer/applications`). Logout button clears `localStorage` and navigates to `/login`. Wraps all officer child routes via React Router's `<Outlet />`.
+
 ### New routes
 
 Added to `routes.tsx`:
 
-| Path | Page |
-|------|------|
-| `/officer` | `OfficerApplicationListPage` |
-| `/officer/applications` | `OfficerApplicationListPage` |
-| `/officer/applications/:id` | `OfficerApplicationDetailPage` |
+```tsx
+{
+  path: '/officer',
+  element: <OfficerLayout />,
+  children: [
+    { index: true, element: <OfficerApplicationListPage /> },
+    { path: 'applications', element: <OfficerApplicationListPage /> },
+    { path: 'applications/:id', element: <OfficerApplicationDetailPage /> },
+  ],
+}
+```
 
 ### Shared component: `ApplicationSections`
 
 **File:** `components/ApplicationSections.tsx`
 
-Renders the four form sections (Basic Details, Operations, Documents, Declarations) read-only from `formData` + `documents` props. Accepts optional `previousFormData` + `previousDocuments` — when provided, computes which fields and documents changed and renders a small "changed" badge on those items. No interactivity.
+**Context:** `ApplicationDetailPage.tsx` was already redesigned (separate spec: `docs/superpowers/specs/2026-04-28-application-detail-redesign.md`) with inline section/field/document rendering logic using `frontend/src/lib/formLabels.ts` (which already exists). UC2 extracts that inline logic into this shared component.
+
+Renders the three form sections (Basic Details, Operations, Declarations) plus a Documents card read-only from `formData` + `documents` props. Uses `SECTION_ORDER`, `DOC_TYPE_ORDER`, `FIELD_LABELS`, `SECTION_LABELS`, `DOC_TYPE_LABELS`, and `OPTIONAL_DOC_TYPES` imported from `lib/formLabels.ts`. Accepts optional `previousFormData` + `previousDocuments` — when provided, computes which fields and documents changed and renders a small "changed" badge on those items. No interactivity.
+
+**Props:**
+```ts
+interface ApplicationSectionsProps {
+  formData: Record<string, Record<string, unknown>>
+  documents: Document[]
+  feedbackByField?: Record<string, FeedbackItem[]>
+  feedbackBySection?: Record<string, FeedbackItem[]>
+  feedbackByDocument?: Record<string, FeedbackItem[]>
+  previousFormData?: Record<string, Record<string, unknown>>
+  previousDocuments?: Document[]
+}
+```
+
+The inline feedback rendering (amber borders, `⚑ flagged` tags, callout blocks) is moved verbatim from `ApplicationDetailPage.tsx` into this component. `ApplicationDetailPage.tsx` is then refactored to delegate to `ApplicationSections`, passing its feedback index maps as props.
 
 Used by:
-- `ApplicationDetailPage` (operator) — passes only current data, no diff.
-- `OfficerApplicationDetailPage` — passes current + previous round data when on round 2+.
+- `ApplicationDetailPage` (operator) — passes feedback maps, no diff props.
+- `OfficerApplicationDetailPage` — passes current + previous round data when on round 2+, no feedback maps (officer writes new feedback, not viewing existing operator-facing feedback).
 
 ### `OfficerApplicationListPage`
 
@@ -315,6 +344,7 @@ FeedbackPanel
 
 ### Frontend (Vitest + Testing Library)
 
+- `OfficerLayout` — renders nav links and logout; logout clears localStorage and redirects.
 - `OfficerApplicationListPage` — renders rows; status filter updates displayed results.
 - `OfficerApplicationDetailPage` — Changes tab shows before→after values on Round 2+; hidden on Round 1.
 - `FeedbackPanel` — Submit disabled with no items; Submit disabled with no status; calls API and resets on success; preserves draft on error.

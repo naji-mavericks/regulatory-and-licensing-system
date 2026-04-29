@@ -224,6 +224,9 @@ My workflow was: requirements → specification → task breakdown → implement
 **Authentication**
 - Password verification — the current login requires only a username. A production system needs password hashing (bcrypt), salting, and a proper credential store.
 
+**UI**
+- Improve the UI for the officer view. Spend some time on the overall layout and navigation.
+
 **Use Case 1 — Operator Submission**
 - Drag-and-drop document uploads (current implementation uses a standard file input).
 - Show officer feedback from all prior rounds, not just the most recent round.

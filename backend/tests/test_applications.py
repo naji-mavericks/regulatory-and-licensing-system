@@ -361,3 +361,56 @@ def test_resubmit_carries_forward_unflagged_docs(client, db_session):
         d for d in round2_docs if d["doc_type"] == "fire_safety"
     ][0]
     assert fire_doc["filename"] == "new_fire_safety.pdf"
+
+
+def get_officer_token(client):
+    login = client.post("/auth/login", json={"username": "bob"})
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def _submit_app(client, headers, centre_name="Test Centre"):
+    """Upload 3 required docs and submit; return application id."""
+    doc1 = upload_doc(client, headers, "staff_cert.pdf", "staff_qualification")
+    app_id = doc1["application_id"]
+    doc2 = upload_doc(client, headers, "fire_safety.pdf", "fire_safety", app_id)
+    doc3 = upload_doc(client, headers, "floor_plan.pdf", "floor_plan", app_id)
+    resp = client.post(
+        "/applications",
+        json={
+            "application_id": app_id,
+            "form_data": _make_form(centre_name),
+            "document_ids": [doc1["id"], doc2["id"], doc3["id"]],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+def test_list_applications_officer_sees_all(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    _submit_app(client, headers_alice)
+    headers_bob = get_officer_token(client)
+    response = client.get("/applications", headers=headers_bob)
+    assert response.status_code == 200
+    apps = response.json()
+    assert len(apps) >= 1
+    assert "operator_name" in apps[0]
+
+
+def test_list_applications_officer_status_filter_match(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    _submit_app(client, headers_alice)
+    headers_bob = get_officer_token(client)
+    response = client.get("/applications?status=Application Received", headers=headers_bob)
+    assert response.status_code == 200
+    assert len(response.json()) >= 1
+
+
+def test_list_applications_officer_status_filter_no_match(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    _submit_app(client, headers_alice)
+    headers_bob = get_officer_token(client)
+    response = client.get("/applications?status=Approved", headers=headers_bob)
+    assert response.status_code == 200
+    assert response.json() == []

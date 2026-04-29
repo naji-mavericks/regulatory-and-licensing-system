@@ -1,12 +1,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, selectinload
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.auth.dependencies import require_operator
+from app.auth.dependencies import get_current_user, require_operator
 from app.database.session import get_db
-from app.models import Application, Document, FeedbackItem, Submission
+from app.models import Application, Document, FeedbackItem, Submission, User
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -15,6 +15,10 @@ OPERATOR_STATUS_MAP = {
     "Under Review": "Under Review",
     "Pending Pre-Site Resubmission": "Pending Pre-Site Resubmission",
     "Pre-Site Resubmitted": "Pre-Site Resubmitted",
+}
+
+OFFICER_STATUS_MAP: dict[str, str] = {
+    "Pending Approval": "Route to Approval",
 }
 
 REQUIRED_DOC_TYPES = {"staff_qualification", "fire_safety", "floor_plan"}
@@ -134,33 +138,59 @@ def submit_application(
 
 @router.get("")
 def list_applications(
-    user: Annotated[dict, Depends(require_operator)],
+    user: Annotated[dict, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    status_filter: str | None = Query(default=None, alias="status"),
 ):
-    applications = (
-        db.query(Application)
-        .options(selectinload(Application.submissions))
-        .filter(
-            Application.operator_id == uuid.UUID(user["sub"]),
-            Application.submissions.any(),
+    if user["role"] == "operator":
+        applications = (
+            db.query(Application)
+            .options(selectinload(Application.submissions))
+            .filter(
+                Application.operator_id == uuid.UUID(user["sub"]),
+                Application.submissions.any(),
+            )
+            .order_by(Application.updated_at.desc())
+            .all()
         )
-        .order_by(Application.updated_at.desc())
-        .all()
+        return [
+            {
+                "id": str(app.id),
+                "status": OPERATOR_STATUS_MAP.get(app.status, app.status),
+                "centre_name": (
+                    app.submissions[-1].form_data.get("basic_details", {}).get("centre_name", "")
+                    if app.submissions else ""
+                ),
+                "type_of_service": (
+                    app.submissions[-1].form_data.get("operations", {}).get("type_of_service", "")
+                    if app.submissions else ""
+                ),
+                "current_round": app.current_round,
+                "updated_at": app.updated_at.isoformat(),
+            }
+            for app in applications
+        ]
+
+    # Officer branch
+    query = (
+        db.query(Application)
+        .options(selectinload(Application.submissions), joinedload(Application.operator))
+        .filter(Application.submissions.any())
     )
+    if status_filter:
+        query = query.filter(Application.status == status_filter)
+    applications = query.order_by(Application.updated_at.desc()).all()
     return [
         {
             "id": str(app.id),
-            "status": OPERATOR_STATUS_MAP.get(app.status, app.status),
+            "status": OFFICER_STATUS_MAP.get(app.status, app.status),
             "centre_name": (
-                app.submissions[-1].form_data
-                .get("basic_details", {})
-                .get("centre_name", "")
+                app.submissions[-1].form_data.get("basic_details", {}).get("centre_name", "")
                 if app.submissions else ""
             ),
+            "operator_name": app.operator.full_name,
             "type_of_service": (
-                app.submissions[-1].form_data
-                .get("operations", {})
-                .get("type_of_service", "")
+                app.submissions[-1].form_data.get("operations", {}).get("type_of_service", "")
                 if app.submissions else ""
             ),
             "current_round": app.current_round,

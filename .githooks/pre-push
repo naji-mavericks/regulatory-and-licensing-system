@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+echo "==> Running backend tests (pytest)..."
+
+TOPDIR="$(git rev-parse --show-toplevel)"
+
+cd "$TOPDIR/backend"
+if ! uv run pytest tests/ -v; then
+    echo ""
+    echo "Backend tests failed. Fix before pushing."
+    exit 1
+fi
+echo "  backend tests: OK"
+
+echo "==> Running frontend tests (vitest)..."
+
+cd "$TOPDIR/frontend"
+if ! npx vitest run; then
+    echo ""
+    echo "Frontend tests failed. Fix before pushing."
+    exit 1
+fi
+echo "  frontend tests: OK"
+
+echo ""
+echo "All pre-push checks passed."

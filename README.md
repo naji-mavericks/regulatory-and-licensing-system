@@ -104,6 +104,19 @@ cd frontend
 npx vitest run
 ```
 
+## Git Hooks
+
+Local pre-commit and pre-push hooks are provided in `.githooks/` to catch failures before they reach CI:
+
+- **pre-commit** — runs `ruff format` + `ruff check` on staged backend files and ESLint on staged frontend files
+- **pre-push** — runs the full `pytest` and `vitest` test suites before any push
+
+To install on a fresh clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Project Structure
 
 ```

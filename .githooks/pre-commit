@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+TOPDIR="$(git rev-parse --show-toplevel)"
+
+echo "==> Running backend format + lint (ruff)..."
+
+# Only run if backend files changed
+if git diff --cached --name-only | grep -q "^backend/"; then
+    STAGED_PY=$(git diff --cached --name-only | grep "^backend/.*\.py$" || true)
+    if [ -n "$STAGED_PY" ]; then
+        cd "$TOPDIR/backend"
+        # Format staged files (auto-fixes line wrapping)
+        echo "$STAGED_PY" | sed 's|^backend/||' | xargs -r uv run ruff format --force-exclude
+        # Re-stage formatted files
+        echo "$STAGED_PY" | while IFS= read -r f; do git add "$TOPDIR/$f"; done
+    fi
+    if ! uv run ruff check src/ tests/; then
+        echo ""
+        echo "Backend lint failed. Run 'cd backend && uv run ruff check src/ tests/ --fix' to auto-fix."
+        exit 1
+    fi
+    echo "  backend: OK"
+else
+    echo "  backend: skipped (no changes)"
+fi
+
+echo "==> Running frontend lint (eslint)..."
+
+if git diff --cached --name-only | grep -q "^frontend/"; then
+    cd "$(git rev-parse --show-toplevel)/frontend"
+    if ! npx eslint . --max-warnings 0; then
+        echo ""
+        echo "Frontend lint failed. Fix errors above before committing."
+        exit 1
+    fi
+    echo "  frontend lint: OK"
+else
+    echo "  frontend lint: skipped (no changes)"
+fi
+
+echo ""
+echo "All pre-commit checks passed."

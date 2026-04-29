@@ -532,3 +532,44 @@ def test_feedback_requires_officer_role(client, db_session):
         headers=headers_alice,
     )
     assert response.status_code == 403
+
+
+def test_patch_status_valid_transition(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+    headers_bob = get_officer_token(client)
+
+    response = client.patch(
+        f"/applications/{app_id}/status",
+        json={"new_status": "Under Review"},
+        headers=headers_bob,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "Under Review"
+    assert "updated_at" in data
+
+
+def test_patch_status_invalid_transition_returns_409(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+    headers_bob = get_officer_token(client)
+
+    response = client.patch(
+        f"/applications/{app_id}/status",
+        json={"new_status": "Approved"},  # invalid from "Application Received"
+        headers=headers_bob,
+    )
+    assert response.status_code == 409
+
+
+def test_patch_status_requires_officer_role(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+
+    response = client.patch(
+        f"/applications/{app_id}/status",
+        json={"new_status": "Under Review"},
+        headers=headers_alice,
+    )
+    assert response.status_code == 403

@@ -610,3 +610,38 @@ def submit_feedback(
             for fi in created_items
         ],
     }
+
+
+@router.patch("/{application_id}/status")
+def update_status(
+    application_id: str,
+    body: dict,
+    user: Annotated[dict, Depends(require_officer)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    application = db.query(Application).filter(
+        Application.id == uuid.UUID(application_id)
+    ).first()
+    if application is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    new_status = body.get("new_status")
+    if not new_status:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="new_status is required")
+
+    try:
+        transition(application.status, new_status)
+    except InvalidTransitionError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    application.status = new_status
+    db.commit()
+    db.refresh(application)
+
+    notify("operator", f"Application {application.id} status changed to '{new_status}'.")
+
+    return {
+        "id": str(application.id),
+        "status": new_status,
+        "updated_at": application.updated_at.isoformat(),
+    }

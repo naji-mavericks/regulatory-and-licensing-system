@@ -106,7 +106,21 @@ export default function DocumentUploader({
 
       {uploaded ? (
         <div>
-          <p className="text-xs text-slate-500">{uploaded.filename}</p>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const res = await api.get(`/documents/${uploaded.id}/download`, { responseType: 'blob' })
+                const url = URL.createObjectURL(res.data)
+                const a = document.createElement('a')
+                a.href = url; a.download = uploaded.filename; a.click()
+                URL.revokeObjectURL(url)
+              } catch { /* ignore */ }
+            }}
+            className="text-xs text-blue-600 underline"
+          >
+            {uploaded.filename}
+          </button>
           {uploaded.ai_status === 'fail' && (
             <button
               type="button"

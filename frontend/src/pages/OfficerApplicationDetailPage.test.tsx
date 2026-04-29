@@ -83,6 +83,6 @@ describe('OfficerApplicationDetailPage', () => {
     vi.mocked(api.get).mockResolvedValueOnce({ data: makeApp(1) })
     renderPage()
     expect(await screen.findByText(/officer feedback/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /submit feedback/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /update status/i })).toBeInTheDocument()
   })
 })

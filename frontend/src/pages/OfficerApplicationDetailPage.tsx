@@ -32,9 +32,9 @@ function computeChangesCount(curr: SubmissionData, prev: SubmissionData): number
       if (c[key] !== p[key]) count++
     }
   }
-  const prevByType = new Map(prev.documents.map(d => [d.doc_type, d.id]))
+  const prevByType = new Map(prev.documents.map(d => [d.doc_type, d.filename]))
   for (const doc of curr.documents) {
-    if (prevByType.has(doc.doc_type) && prevByType.get(doc.doc_type) !== doc.id) count++
+    if (prevByType.has(doc.doc_type) && prevByType.get(doc.doc_type) !== doc.filename) count++
   }
   return count
 }
@@ -50,7 +50,7 @@ function ChangesView({ current, previous }: { current: SubmissionData; previous:
   }
   const docChanges = current.documents.filter(doc => {
     const prev = previous.documents.find(d => d.doc_type === doc.doc_type)
-    return prev && prev.id !== doc.id
+    return prev && prev.filename !== doc.filename
   })
   return (
     <div className="flex flex-col gap-3">

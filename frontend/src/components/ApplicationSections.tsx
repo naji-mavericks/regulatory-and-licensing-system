@@ -1,4 +1,5 @@
 import React from 'react'
+import { api } from '../lib/api'
 import {
   FIELD_LABELS,
   SECTION_LABELS,
@@ -59,10 +60,10 @@ export default function ApplicationSections({
 
   const changedDocTypes = React.useMemo(() => {
     if (!previousDocuments) return new Set<string>()
-    const prevByType = new Map(previousDocuments.map(d => [d.doc_type, d.id]))
+    const prevByType = new Map(previousDocuments.map(d => [d.doc_type, d.filename]))
     const changed = new Set<string>()
     for (const doc of documents) {
-      if (prevByType.has(doc.doc_type) && prevByType.get(doc.doc_type) !== doc.id) {
+      if (prevByType.has(doc.doc_type) && prevByType.get(doc.doc_type) !== doc.filename) {
         changed.add(doc.doc_type)
       }
     }
@@ -144,7 +145,25 @@ export default function ApplicationSections({
                         {isFlagged && <span className="text-xs text-amber-600 font-medium ml-1">⚑ flagged</span>}
                         {isChanged && <span className="text-xs text-indigo-600 font-medium ml-1 px-1 bg-indigo-50 rounded">changed</span>}
                       </span>
-                      <p className="text-xs text-slate-600 mt-0.5">{doc ? doc.filename : 'Not submitted'}</p>
+                      {doc ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await api.get(`/documents/${doc.id}/download`, { responseType: 'blob' })
+                              const url = URL.createObjectURL(res.data)
+                              const a = document.createElement('a')
+                              a.href = url; a.download = doc.filename; a.click()
+                              URL.revokeObjectURL(url)
+                            } catch { /* ignore */ }
+                          }}
+                          className="text-xs text-blue-600 underline mt-0.5 cursor-pointer"
+                        >
+                          {doc.filename}
+                        </button>
+                      ) : (
+                        <p className="text-xs text-slate-600 mt-0.5">Not submitted</p>
+                      )}
                     </div>
                     {doc ? (
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${doc.ai_status === 'pass' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>

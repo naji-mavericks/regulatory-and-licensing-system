@@ -4,9 +4,10 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import require_operator
+from app.auth.dependencies import get_current_user, require_operator
 from app.config import settings
 from app.database.session import get_db
 from app.models import Application, Document
@@ -80,3 +81,45 @@ def upload_document(
         "ai_status": document.ai_status,
         "ai_details": document.ai_details,
     }
+
+
+@router.get("/{document_id}/download")
+def download_document(
+    document_id: str,
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    document = db.query(Document).filter(Document.id == uuid.UUID(document_id)).first()
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    if user["role"] == "operator":
+        application = (
+            db.query(Application)
+            .filter(
+                Application.id == document.application_id,
+                Application.operator_id == uuid.UUID(user["sub"]),
+            )
+            .first()
+        )
+        if application is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+
+    file_path = Path(document.file_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on disk",
+        )
+
+    return FileResponse(
+        path=str(file_path),
+        filename=document.filename,
+        media_type="application/octet-stream",
+    )

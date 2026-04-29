@@ -139,7 +139,8 @@ export default function FeedbackPanel({ applicationId, currentStatus, documents,
   const [error, setError] = React.useState<string | null>(null)
 
   const validNextStatuses = getValidNextStatuses(currentStatus)
-  const canSubmit = items.some(i => i.comment.trim()) && newStatus !== '' && !submitting
+  const hasComments = items.some(i => i.comment.trim())
+  const canSubmit = newStatus !== '' && !submitting
 
   const updateItem = (index: number, update: Partial<FeedbackItemDraft>) =>
     setItems(prev => prev.map((item, i) => i === index ? { ...item, ...update } : item))
@@ -148,14 +149,18 @@ export default function FeedbackPanel({ applicationId, currentStatus, documents,
     setSubmitting(true)
     setError(null)
     try {
-      const feedbackItems = items.filter(i => i.comment.trim()).map(i => ({
-        target_type: i.targetType,
-        section: i.section,
-        field_key: i.targetType === 'field' ? i.fieldKey : null,
-        document_id: i.targetType === 'document' ? i.documentId : null,
-        comment: i.comment,
-      }))
-      await api.post(`/applications/${applicationId}/feedback`, { feedback_items: feedbackItems, new_status: newStatus })
+      if (hasComments) {
+        const feedbackItems = items.filter(i => i.comment.trim()).map(i => ({
+          target_type: i.targetType,
+          section: i.section,
+          field_key: i.targetType === 'field' ? i.fieldKey : null,
+          document_id: i.targetType === 'document' ? i.documentId : null,
+          comment: i.comment,
+        }))
+        await api.post(`/applications/${applicationId}/feedback`, { feedback_items: feedbackItems, new_status: newStatus })
+      } else {
+        await api.patch(`/applications/${applicationId}/status`, { new_status: newStatus })
+      }
       setItems([emptyDraft()])
       setNewStatus('')
       onSuccess()
@@ -186,7 +191,7 @@ export default function FeedbackPanel({ applicationId, currentStatus, documents,
       {error && <p className="text-red-500 text-sm">{error}</p>}
       <button type="button" onClick={handleSubmit} disabled={!canSubmit}
         className="bg-slate-900 text-white py-2 px-4 rounded-md text-sm disabled:opacity-50">
-        Submit Feedback
+        {hasComments ? 'Submit Feedback' : 'Update Status'}
       </button>
     </div>
   )

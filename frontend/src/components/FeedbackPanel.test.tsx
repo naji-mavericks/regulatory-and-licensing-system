@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import FeedbackPanel from './FeedbackPanel'
 
-vi.mock('../lib/api', () => ({ api: { post: vi.fn() } }))
+vi.mock('../lib/api', () => ({ api: { post: vi.fn(), patch: vi.fn() } }))
 import { api } from '../lib/api'
 
 const DOCS = [
@@ -25,9 +25,9 @@ const renderPanel = (onSuccess = vi.fn()) =>
 describe('FeedbackPanel', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('submit button is disabled when comment is empty', () => {
+  it('submit button is disabled when no status selected', () => {
     renderPanel()
-    expect(screen.getByRole('button', { name: /submit feedback/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /update status/i })).toBeDisabled()
   })
 
   it('submit button is disabled when status not selected even with comment', () => {

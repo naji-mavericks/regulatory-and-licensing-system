@@ -1,5 +1,5 @@
 import React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { api } from '../lib/api'
 import FeedbackSummary from '../components/FeedbackSummary'
@@ -117,14 +117,18 @@ export default function ResubmissionPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
+      <Link to={`/operator/applications/${id}`} className="text-sm text-blue-600 underline mb-2 block">
+        &larr; Back to application
+      </Link>
       <h1 className="text-2xl font-bold mb-6">Resubmit Application</h1>
 
       <FeedbackSummary feedback={feedback} />
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
         {Object.entries(latestFormData).map(([section, fields]) => {
-          if (section === 'declarations') return null
           const sectionLabel = SECTION_LABELS[section] || section
+          const sectionHasFlaggedField = Object.keys(fields).some(k => isFieldEditable(k))
+          if (!sectionHasFlaggedField) return null
 
           return (
             <fieldset key={section} className="border rounded-lg p-4">
@@ -133,6 +137,26 @@ export default function ResubmissionPage() {
                 {Object.entries(fields).map(([key, value]) => {
                   const editable = isFieldEditable(key)
                   const label = FIELD_LABELS[key] || key
+
+                  if (typeof value === 'boolean') {
+                    return (
+                      <div key={key} className="col-span-2 flex flex-col gap-1">
+                        <span className="text-sm flex items-center gap-1">
+                          {label}
+                          {editable && <span className="text-xs text-amber-600">(flagged)</span>}
+                        </span>
+                        <label className={`flex items-center gap-2 text-sm p-2 border rounded ${editable ? 'border-amber-400 bg-amber-50' : 'bg-slate-50 text-slate-500'}`}>
+                          <input
+                            type="checkbox"
+                            defaultChecked={!!value}
+                            disabled={!editable}
+                            {...(editable ? register(key) : {})}
+                          />
+                          I confirm compliance with applicable laws and regulations
+                        </label>
+                      </div>
+                    )
+                  }
 
                   return (
                     <div key={key} className="flex flex-col gap-1">
@@ -175,9 +199,27 @@ export default function ResubmissionPage() {
               }
 
               return (
-                <div key={docType} className="border rounded p-3 bg-slate-50">
-                  <span className="text-sm text-slate-500">{latestDoc?.filename || 'No document'}</span>
-                  <span className="text-xs text-slate-400 ml-2">(unchanged)</span>
+                <div key={docType} className="border rounded p-3 bg-slate-50 flex items-center gap-2">
+                  {latestDoc ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await api.get(`/documents/${latestDoc.id}/download`, { responseType: 'blob' })
+                          const url = URL.createObjectURL(res.data)
+                          const a = document.createElement('a')
+                          a.href = url; a.download = latestDoc.filename; a.click()
+                          URL.revokeObjectURL(url)
+                        } catch { /* ignore */ }
+                      }}
+                      className="text-sm text-blue-600 underline"
+                    >
+                      {latestDoc.filename}
+                    </button>
+                  ) : (
+                    <span className="text-sm text-slate-500">No document</span>
+                  )}
+                  <span className="text-xs text-slate-400">(unchanged)</span>
                 </div>
               )
             })}

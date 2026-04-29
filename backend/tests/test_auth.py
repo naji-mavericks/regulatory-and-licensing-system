@@ -6,9 +6,7 @@ from app.config import settings
 
 
 def test_login_operator_returns_token(client):
-    response = client.post(
-        "/auth/login", json={"username": "alice", "role": "operator"}
-    )
+    response = client.post("/auth/login", json={"username": "alice"})
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
@@ -16,22 +14,20 @@ def test_login_operator_returns_token(client):
 
 
 def test_login_officer_returns_token(client):
-    response = client.post("/auth/login", json={"username": "bob", "role": "officer"})
+    response = client.post("/auth/login", json={"username": "bob"})
     assert response.status_code == 200
 
 
 def test_login_unknown_user_rejected(client):
     response = client.post(
-        "/auth/login", json={"username": "nobody", "role": "operator"}
+        "/auth/login", json={"username": "nobody"}
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "User not found"
 
 
 def test_token_sub_is_user_id_uuid(client):
-    response = client.post(
-        "/auth/login", json={"username": "alice", "role": "operator"}
-    )
+    response = client.post("/auth/login", json={"username": "alice"})
     token = response.json()["access_token"]
     payload = jwt.decode(
         token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
@@ -61,3 +57,20 @@ def test_me_rejects_invalid_token(client):
         "/auth/me", headers={"Authorization": "Bearer this.is.not.a.valid.token"}
     )
     assert response.status_code in (401, 403)
+
+
+def test_login_returns_role_in_response(client):
+    response = client.post("/auth/login", json={"username": "alice"})
+    assert response.status_code == 200
+    assert response.json()["role"] == "operator"
+
+
+def test_login_officer_role_derived_from_db(client):
+    response = client.post("/auth/login", json={"username": "bob"})
+    assert response.status_code == 200
+    assert response.json()["role"] == "officer"
+
+
+def test_login_unknown_user_returns_401(client):
+    response = client.post("/auth/login", json={"username": "nobody"})
+    assert response.status_code == 401

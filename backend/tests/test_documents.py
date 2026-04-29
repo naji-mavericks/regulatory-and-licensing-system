@@ -6,7 +6,7 @@ import pytest
 
 def get_operator_token(client, db_session):
     """Helper: login as operator and return auth header."""
-    login = client.post("/auth/login", json={"username": "alice", "role": "operator"})
+    login = client.post("/auth/login", json={"username": "alice"})
     assert login.status_code == 200
     token = login.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

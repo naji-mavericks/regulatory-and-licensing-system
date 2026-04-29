@@ -5,9 +5,7 @@ from app.models import Application
 
 
 def get_operator_token(client, db_session):
-    login = client.post(
-        "/auth/login", json={"username": "alice", "role": "operator"}
-    )
+    login = client.post("/auth/login", json={"username": "alice"})
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
@@ -130,7 +128,7 @@ def test_submit_rejects_missing_fields(client, db_session):
 
 
 def test_submit_requires_operator_role(client, db_session):
-    login = client.post("/auth/login", json={"username": "bob", "role": "officer"})
+    login = client.post("/auth/login", json={"username": "bob"})
     token = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     response = client.post("/applications", json={}, headers=headers)
@@ -225,7 +223,7 @@ def test_get_application_blocks_other_operator(client, db_session):
     app_id = submit_resp.json()["id"]
 
     # Login as charlie (second operator) and try to access alice's application
-    login = client.post("/auth/login", json={"username": "charlie", "role": "operator"})
+    login = client.post("/auth/login", json={"username": "charlie"})
     headers_c = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
     # Charlie should get 404 when trying to access alice's application

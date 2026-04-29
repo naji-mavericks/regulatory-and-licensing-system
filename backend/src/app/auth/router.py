@@ -14,16 +14,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=TokenResponse)
 def login(request: LoginRequest, db: Annotated[Session, Depends(get_db)]):
-    user = db.query(User).filter(
-        User.username == request.username,
-        User.role == request.role,
-    ).first()
+    user = db.query(User).filter(User.username == request.username).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
-    token = create_token({"sub": str(user.id), "role": user.role})
-    return TokenResponse(access_token=token)
+    token = create_token({"sub": str(user.id), "role": user.role, "username": user.username})
+    return TokenResponse(access_token=token, role=user.role)
 
 
 @router.get("/me")

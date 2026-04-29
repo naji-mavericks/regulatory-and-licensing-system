@@ -40,12 +40,6 @@ describe('OperatorLayout', () => {
     expect(link).toHaveAttribute('href', '/operator/applications')
   })
 
-  it('renders New Application nav link', () => {
-    renderWithRouter()
-    const link = screen.getByRole('link', { name: /new application/i })
-    expect(link).toHaveAttribute('href', '/operator/apply')
-  })
-
   it('renders the outlet content', () => {
     renderWithRouter()
     expect(screen.getByText('Applications Page')).toBeInTheDocument()

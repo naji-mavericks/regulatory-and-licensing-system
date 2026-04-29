@@ -9,10 +9,6 @@ const STATUS_CLASSES: Record<string, string> = {
   'Rejected': 'bg-red-50 text-red-700',
   // Operator-view labels
   'Submitted': 'bg-blue-50 text-blue-700',
-  'Pending Site Visit': 'bg-amber-50 text-amber-700',
-  'Pending Post-Site Clarification': 'bg-amber-50 text-amber-700',
-  'Pending Post-Site Resubmission': 'bg-amber-50 text-amber-700',
-  'Post-Site Resubmitted': 'bg-purple-50 text-purple-700',
   // Officer-view labels
   'Route to Approval': 'bg-indigo-50 text-indigo-700',
 }

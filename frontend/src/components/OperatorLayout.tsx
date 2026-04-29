@@ -28,9 +28,6 @@ export default function OperatorLayout() {
           <NavLink to="/operator/applications" className={navLinkClass}>
             My Applications
           </NavLink>
-          <NavLink to="/operator/apply" className={navLinkClass}>
-            New Application
-          </NavLink>
         </nav>
 
         <div className="px-4 py-4 border-t border-slate-100 flex flex-col gap-2">

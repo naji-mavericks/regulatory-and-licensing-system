@@ -3,6 +3,7 @@ export const VALID_TRANSITIONS: Record<string, string[]> = {
   "Under Review": ["Pending Pre-Site Resubmission", "Pending Approval", "Rejected"],
   "Pre-Site Resubmitted": ["Under Review"],
   "Pending Approval": ["Approved", "Rejected"],
+  "Route to Approval": ["Approved", "Rejected"],
 }
 
 export const OFFICER_STATUS_MAP: Record<string, string> = {

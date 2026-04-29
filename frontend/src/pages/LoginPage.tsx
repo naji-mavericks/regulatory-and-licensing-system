@@ -34,7 +34,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6">
+      <h1 className="text-2xl font-bold">Regulatory &amp; Licensing System</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 w-80">
         <h1 className="text-2xl font-bold">Login</h1>
         <div className="flex flex-col gap-1">

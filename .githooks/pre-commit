@@ -15,6 +15,7 @@ if git diff --cached --name-only | grep -q "^backend/"; then
         # Re-stage formatted files
         echo "$STAGED_PY" | while IFS= read -r f; do git add "$TOPDIR/$f"; done
     fi
+    cd "$TOPDIR/backend"
     if ! uv run ruff check src/ tests/; then
         echo ""
         echo "Backend lint failed. Run 'cd backend && uv run ruff check src/ tests/ --fix' to auto-fix."

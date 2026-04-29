@@ -18,13 +18,9 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String, nullable=False)
     email: Mapped[str] = mapped_column(String, nullable=False)
     phone: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_NOW
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_NOW)
 
-    applications: Mapped[list["Application"]] = relationship(
-        back_populates="operator"
-    )
+    applications: Mapped[list["Application"]] = relationship(back_populates="operator")
 
 
 class Application(Base):
@@ -38,9 +34,7 @@ class Application(Base):
         String, nullable=False, default="Application Received"
     )
     current_round: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_NOW
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_NOW)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_NOW, onupdate=_NOW
     )
@@ -91,9 +85,7 @@ class Document(Base):
     file_path: Mapped[str] = mapped_column(String, nullable=False)
     ai_status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     ai_details: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    uploaded_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_NOW
-    )
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_NOW)
 
     application: Mapped["Application"] = relationship(
         back_populates="documents", foreign_keys=[application_id]
@@ -122,9 +114,7 @@ class FeedbackItem(Base):
     )
     comment: Mapped[str] = mapped_column(Text, nullable=False)
     created_by: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_NOW
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_NOW)
 
     submission: Mapped["Submission"] = relationship(back_populates="feedback_items")
     document: Mapped["Document | None"] = relationship(back_populates="feedback_items")

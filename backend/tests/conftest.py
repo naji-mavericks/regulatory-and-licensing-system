@@ -30,18 +30,33 @@ app.dependency_overrides[get_db] = override_get_db
 def setup_db():
     Base.metadata.create_all(bind=test_engine)
     db = TestSessionLocal()
-    db.add(User(
-        username="alice", role="operator", full_name="Alice Operator",
-        email="alice@test.com", phone="+65 1111 1111",
-    ))
-    db.add(User(
-        username="bob", role="officer", full_name="Bob Officer",
-        email="bob@test.com", phone="+65 2222 2222",
-    ))
-    db.add(User(
-        username="charlie", role="operator", full_name="Charlie Operator",
-        email="charlie@test.com", phone="+65 3333 3333",
-    ))
+    db.add(
+        User(
+            username="alice",
+            role="operator",
+            full_name="Alice Operator",
+            email="alice@test.com",
+            phone="+65 1111 1111",
+        )
+    )
+    db.add(
+        User(
+            username="bob",
+            role="officer",
+            full_name="Bob Officer",
+            email="bob@test.com",
+            phone="+65 2222 2222",
+        )
+    )
+    db.add(
+        User(
+            username="charlie",
+            role="operator",
+            full_name="Charlie Operator",
+            email="charlie@test.com",
+            phone="+65 3333 3333",
+        )
+    )
     db.commit()
     db.close()
     yield

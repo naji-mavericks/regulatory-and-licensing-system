@@ -69,10 +69,14 @@ def submit_application(
         )
 
     # Verify application belongs to operator
-    application = db.query(Application).filter(
-        Application.id == uuid.UUID(application_id),
-        Application.operator_id == uuid.UUID(user["sub"]),
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(
+            Application.id == uuid.UUID(application_id),
+            Application.operator_id == uuid.UUID(user["sub"]),
+        )
+        .first()
+    )
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -89,10 +93,14 @@ def submit_application(
 
     # Verify all required doc types present (scoped to this application)
     doc_uuids = [uuid.UUID(d) for d in document_ids]
-    docs = db.query(Document).filter(
-        Document.id.in_(doc_uuids),
-        Document.application_id == application.id,
-    ).all()
+    docs = (
+        db.query(Document)
+        .filter(
+            Document.id.in_(doc_uuids),
+            Document.application_id == application.id,
+        )
+        .all()
+    )
     doc_types_present = {d.doc_type for d in docs}
     missing = REQUIRED_DOC_TYPES - doc_types_present
     if missing:
@@ -163,13 +171,15 @@ def list_applications(
                     app.submissions[-1]
                     .form_data.get("basic_details", {})
                     .get("centre_name", "")
-                    if app.submissions else ""
+                    if app.submissions
+                    else ""
                 ),
                 "type_of_service": (
                     app.submissions[-1]
                     .form_data.get("operations", {})
                     .get("type_of_service", "")
-                    if app.submissions else ""
+                    if app.submissions
+                    else ""
                 ),
                 "current_round": app.current_round,
                 "updated_at": app.updated_at.isoformat(),
@@ -197,14 +207,16 @@ def list_applications(
                 app.submissions[-1]
                 .form_data.get("basic_details", {})
                 .get("centre_name", "")
-                if app.submissions else ""
+                if app.submissions
+                else ""
             ),
             "operator_name": app.operator.full_name,
             "type_of_service": (
                 app.submissions[-1]
                 .form_data.get("operations", {})
                 .get("type_of_service", "")
-                if app.submissions else ""
+                if app.submissions
+                else ""
             ),
             "current_round": app.current_round,
             "updated_at": app.updated_at.isoformat(),
@@ -220,10 +232,14 @@ def get_application(
     db: Annotated[Session, Depends(get_db)],
 ):
     if user["role"] == "operator":
-        application = db.query(Application).filter(
-            Application.id == uuid.UUID(application_id),
-            Application.operator_id == uuid.UUID(user["sub"]),
-        ).first()
+        application = (
+            db.query(Application)
+            .filter(
+                Application.id == uuid.UUID(application_id),
+                Application.operator_id == uuid.UUID(user["sub"]),
+            )
+            .first()
+        )
         if application is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -245,9 +261,7 @@ def get_application(
         )
 
         docs = (
-            db.query(Document)
-            .filter(Document.submission_id == latest_sub.id)
-            .all()
+            db.query(Document).filter(Document.submission_id == latest_sub.id).all()
             if latest_sub
             else []
         )
@@ -269,7 +283,9 @@ def get_application(
                     }
                     for d in docs
                 ],
-            } if latest_sub else None,
+            }
+            if latest_sub
+            else None,
             "latest_feedback": [
                 {
                     "id": str(f.id),
@@ -286,9 +302,11 @@ def get_application(
         }
 
     # Officer branch
-    application = db.query(Application).filter(
-        Application.id == uuid.UUID(application_id)
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(Application.id == uuid.UUID(application_id))
+        .first()
+    )
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -338,9 +356,7 @@ def get_application(
                         "target_type": f.target_type,
                         "section": f.section,
                         "field_key": f.field_key,
-                        "document_id": (
-                            str(f.document_id) if f.document_id else None
-                        ),
+                        "document_id": (str(f.document_id) if f.document_id else None),
                         "comment": f.comment,
                         "created_by": f.created_by,
                         "created_at": f.created_at.isoformat(),
@@ -359,10 +375,14 @@ def get_submissions(
     user: Annotated[dict, Depends(require_operator)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    application = db.query(Application).filter(
-        Application.id == uuid.UUID(application_id),
-        Application.operator_id == uuid.UUID(user["sub"]),
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(
+            Application.id == uuid.UUID(application_id),
+            Application.operator_id == uuid.UUID(user["sub"]),
+        )
+        .first()
+    )
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -421,10 +441,14 @@ def resubmit_application(
     user: Annotated[dict, Depends(require_operator)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    application = db.query(Application).filter(
-        Application.id == uuid.UUID(application_id),
-        Application.operator_id == uuid.UUID(user["sub"]),
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(
+            Application.id == uuid.UUID(application_id),
+            Application.operator_id == uuid.UUID(user["sub"]),
+        )
+        .first()
+    )
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -541,9 +565,11 @@ def submit_feedback(
     user: Annotated[dict, Depends(require_officer)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    application = db.query(Application).filter(
-        Application.id == uuid.UUID(application_id)
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(Application.id == uuid.UUID(application_id))
+        .first()
+    )
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -615,15 +641,18 @@ def submit_feedback(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="section must be 'documents' for document feedback",
                 )
-            doc = db.query(Document).filter(
-                Document.id == uuid.UUID(document_id),
-                Document.application_id == application.id,
-            ).first()
+            doc = (
+                db.query(Document)
+                .filter(
+                    Document.id == uuid.UUID(document_id),
+                    Document.application_id == application.id,
+                )
+                .first()
+            )
             if doc is None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Document {document_id} not found"
-                    f" in this application",
+                    detail=f"Document {document_id} not found in this application",
                 )
 
     try:
@@ -654,8 +683,7 @@ def submit_feedback(
             section=item["section"],
             field_key=item.get("field_key"),
             document_id=(
-                uuid.UUID(item["document_id"])
-                if item.get("document_id") else None
+                uuid.UUID(item["document_id"]) if item.get("document_id") else None
             ),
             comment=item["comment"],
             created_by=user.get("username", "officer"),
@@ -699,9 +727,11 @@ def update_status(
     user: Annotated[dict, Depends(require_officer)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    application = db.query(Application).filter(
-        Application.id == uuid.UUID(application_id)
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(Application.id == uuid.UUID(application_id))
+        .first()
+    )
     if application is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

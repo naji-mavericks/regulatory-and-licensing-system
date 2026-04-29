@@ -16,9 +16,7 @@ def upload_doc(client, headers, filename, doc_type, application_id=None):
         data["application_id"] = application_id
     response = client.post(
         "/documents/upload",
-        files={
-            "file": (filename, io.BytesIO(b"content"), "application/pdf")
-        },
+        files={"file": (filename, io.BytesIO(b"content"), "application/pdf")},
         data=data,
         headers=headers,
     )
@@ -28,9 +26,11 @@ def upload_doc(client, headers, filename, doc_type, application_id=None):
 
 def _set_app_status(db_session, app_id: str, status: str):
     """Helper: directly set an application's status in the DB."""
-    app = db_session.query(Application).filter(
-        Application.id == uuid.UUID(app_id)
-    ).first()
+    app = (
+        db_session.query(Application)
+        .filter(Application.id == uuid.UUID(app_id))
+        .first()
+    )
     app.status = status
     db_session.commit()
 
@@ -295,9 +295,7 @@ def test_resubmit_creates_new_round(client, db_session):
     )
     _set_app_status(db_session, app_id, "Pending Pre-Site Resubmission")
 
-    new_doc = upload_doc(
-        client, headers, "new_fire_safety.pdf", "fire_safety", app_id
-    )
+    new_doc = upload_doc(client, headers, "new_fire_safety.pdf", "fire_safety", app_id)
     response = client.post(
         f"/applications/{app_id}/resubmit",
         json={
@@ -316,9 +314,7 @@ def test_resubmit_creates_new_round(client, db_session):
     assert form["basic_details"]["centre_name"] == "New Name"
     assert form["basic_details"]["uen"] == "123"
 
-    history = client.get(
-        f"/applications/{app_id}/submissions", headers=headers
-    )
+    history = client.get(f"/applications/{app_id}/submissions", headers=headers)
     assert len(history.json()) == 2
 
 
@@ -340,26 +336,20 @@ def test_resubmit_carries_forward_unflagged_docs(client, db_session):
     )
     _set_app_status(db_session, app_id, "Pending Pre-Site Resubmission")
 
-    new_fire = upload_doc(
-        client, headers, "new_fire_safety.pdf", "fire_safety", app_id
-    )
+    new_fire = upload_doc(client, headers, "new_fire_safety.pdf", "fire_safety", app_id)
     client.post(
         f"/applications/{app_id}/resubmit",
         json={"form_data": {}, "document_ids": [new_fire["id"]]},
         headers=headers,
     )
 
-    history = client.get(
-        f"/applications/{app_id}/submissions", headers=headers
-    )
+    history = client.get(f"/applications/{app_id}/submissions", headers=headers)
     rounds = history.json()
     round2_docs = rounds[1]["documents"]
     assert len(round2_docs) == 3
     doc_types = {d["doc_type"] for d in round2_docs}
     assert doc_types == {"staff_qualification", "fire_safety", "floor_plan"}
-    fire_doc = [
-        d for d in round2_docs if d["doc_type"] == "fire_safety"
-    ][0]
+    fire_doc = [d for d in round2_docs if d["doc_type"] == "fire_safety"][0]
     assert fire_doc["filename"] == "new_fire_safety.pdf"
 
 
@@ -513,8 +503,13 @@ def test_feedback_invalid_transition_returns_409(client, db_session):
         f"/applications/{app_id}/feedback",
         json={
             "feedback_items": [
-                {"target_type": "field", "section": "basic_details",
-                 "field_key": "uen", "document_id": None, "comment": "Fix UEN."}
+                {
+                    "target_type": "field",
+                    "section": "basic_details",
+                    "field_key": "uen",
+                    "document_id": None,
+                    "comment": "Fix UEN.",
+                }
             ],
             "new_status": "Approved",  # invalid from "Application Received"
         },

@@ -33,10 +33,14 @@ def upload_document(
 ):
     # Get or create application
     if application_id:
-        application = db.query(Application).filter(
-            Application.id == uuid.UUID(application_id),
-            Application.operator_id == uuid.UUID(user["sub"]),
-        ).first()
+        application = (
+            db.query(Application)
+            .filter(
+                Application.id == uuid.UUID(application_id),
+                Application.operator_id == uuid.UUID(user["sub"]),
+            )
+            .first()
+        )
         if application is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

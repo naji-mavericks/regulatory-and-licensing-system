@@ -14,7 +14,6 @@ def test_notify_officer_logs_message(caplog):
     with caplog.at_level(logging.INFO, logger="app.services.notifications"):
         notify("officer", "Application 456 resubmitted (Round 2). Ready for review.")
     expected = (
-        "[NOTIFY → OFFICER] Application 456 resubmitted"
-        " (Round 2). Ready for review."
+        "[NOTIFY → OFFICER] Application 456 resubmitted (Round 2). Ready for review."
     )
     assert expected in caplog.text

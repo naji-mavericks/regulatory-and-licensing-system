@@ -19,9 +19,7 @@ def test_login_officer_returns_token(client):
 
 
 def test_login_unknown_user_rejected(client):
-    response = client.post(
-        "/auth/login", json={"username": "nobody"}
-    )
+    response = client.post("/auth/login", json={"username": "nobody"})
     assert response.status_code == 401
     assert response.json()["detail"] == "User not found"
 

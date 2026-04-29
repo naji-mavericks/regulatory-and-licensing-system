@@ -88,7 +88,7 @@ export default function ApplicationDetailPage() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{centreName || 'Application'}</h1>
-          <p className="text-sm text-slate-500 mt-1">Round {app.current_round}</p>
+          <p className="text-sm text-slate-600 mt-1">Round {app.current_round}</p>
         </div>
         <StatusBadge status={app.status} />
       </div>
@@ -146,14 +146,14 @@ export default function ApplicationDetailPage() {
                     key={key}
                     className={`flex flex-col gap-1 ${isFullWidth ? 'col-span-2' : ''}`}
                   >
-                    <span className="text-xs text-slate-500 flex items-center gap-1">
+                    <span className="text-xs text-slate-600 flex items-center gap-1">
                       {label}
                       {isFlagged && <span className="text-amber-600 font-medium">⚑ flagged</span>}
                     </span>
                     <div className={`rounded-md px-3 py-1.5 text-sm ${
                       isFlagged
-                        ? 'bg-amber-50 border-2 border-amber-400 text-slate-700'
-                        : 'bg-slate-50 border border-slate-200 text-slate-700'
+                        ? 'bg-amber-50 border-2 border-amber-400 text-slate-800'
+                        : 'bg-slate-50 border border-slate-200 text-slate-800'
                     }`}>
                       {displayValue}
                     </div>
@@ -196,10 +196,10 @@ export default function ApplicationDetailPage() {
                       <div>
                         <span className="text-sm font-medium">
                           {label}
-                          {isOptional && <span className="text-xs text-slate-400 ml-1">(optional)</span>}
+                          {isOptional && <span className="text-xs text-slate-500 ml-1">(optional)</span>}
                           {isFlagged && <span className="text-xs text-amber-600 font-medium ml-1">⚑ flagged</span>}
                         </span>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs text-slate-600 mt-0.5">
                           {doc ? doc.filename : 'Not submitted'}
                         </p>
                       </div>
@@ -212,7 +212,7 @@ export default function ApplicationDetailPage() {
                           {doc.ai_status}
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-400">—</span>
+                        <span className="text-xs text-slate-500">—</span>
                       )}
                     </div>
                   </div>

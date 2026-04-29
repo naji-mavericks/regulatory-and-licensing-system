@@ -36,7 +36,7 @@ export default function ApplicationListPage() {
         </Link>
       </div>
 
-      {loading && <p className="text-slate-500">Loading...</p>}
+      {loading && <p className="text-slate-600">Loading...</p>}
 
       {error && (
         <div className="text-center py-12 border rounded-lg border-red-200 bg-red-50">
@@ -46,7 +46,7 @@ export default function ApplicationListPage() {
 
       {!loading && !error && apps.length === 0 && (
         <div className="text-center py-12 border rounded-lg">
-          <p className="text-slate-500 mb-4">No applications yet</p>
+          <p className="text-slate-600 mb-4">No applications yet</p>
           <Link to="/operator/apply" className="text-blue-600 underline">
             Start your first application
           </Link>
@@ -63,12 +63,12 @@ export default function ApplicationListPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold">{app.centre_name}</h2>
-                <p className="text-sm text-slate-500">{app.type_of_service}</p>
+                <h2 className="font-semibold text-slate-900">{app.centre_name}</h2>
+                <p className="text-sm text-slate-600">{app.type_of_service}</p>
               </div>
               <StatusBadge status={app.status} />
             </div>
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-slate-500 mt-2">
               Round {app.current_round} &middot; Updated {new Date(app.updated_at).toLocaleDateString()}
             </p>
           </Link>

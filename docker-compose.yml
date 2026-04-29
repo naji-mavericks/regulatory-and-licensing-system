@@ -28,7 +28,7 @@ services:
     volumes:
       - ./backend/src:/app/src
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
       interval: 5s
       timeout: 5s
       retries: 5

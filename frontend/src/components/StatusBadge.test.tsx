@@ -50,8 +50,8 @@ describe('StatusBadge', () => {
   })
 
   it('applies grey classes for unknown status', () => {
-    render(<StatusBadge status="Submitted" />)
-    const badge = screen.getByText('Submitted')
+    render(<StatusBadge status="UnknownStatus" />)
+    const badge = screen.getByText('UnknownStatus')
     expect(badge.className).toContain('bg-slate-100')
     expect(badge.className).toContain('text-slate-600')
   })

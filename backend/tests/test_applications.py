@@ -414,3 +414,40 @@ def test_list_applications_officer_status_filter_no_match(client, db_session):
     response = client.get("/applications?status=Approved", headers=headers_bob)
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_get_application_officer_returns_full_audit_trail(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+    headers_bob = get_officer_token(client)
+    response = client.get(f"/applications/{app_id}", headers=headers_bob)
+    assert response.status_code == 200
+    data = response.json()
+    assert "submissions" in data
+    assert len(data["submissions"]) == 1
+    assert data["submissions"][0]["round_number"] == 1
+    assert "form_data" in data["submissions"][0]
+    assert "documents" in data["submissions"][0]
+    assert "feedback_items" in data["submissions"][0]
+
+
+def test_get_application_officer_includes_operator_block(client, db_session):
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+    headers_bob = get_officer_token(client)
+    response = client.get(f"/applications/{app_id}", headers=headers_bob)
+    assert response.status_code == 200
+    data = response.json()
+    assert "operator" in data
+    assert data["operator"]["full_name"] == "Alice Operator"
+    assert data["operator"]["email"] == "alice@test.com"
+
+
+def test_get_application_officer_not_filtered_by_ownership(client, db_session):
+    """Officer can access any application regardless of operator."""
+    headers_alice = get_operator_token(client, db_session)
+    app_id = _submit_app(client, headers_alice)
+    # Charlie (another operator) cannot see it, but bob (officer) can
+    headers_bob = get_officer_token(client)
+    response = client.get(f"/applications/{app_id}", headers=headers_bob)
+    assert response.status_code == 200

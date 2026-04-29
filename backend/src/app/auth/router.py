@@ -19,7 +19,9 @@ def login(request: LoginRequest, db: Annotated[Session, Depends(get_db)]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
-    token = create_token({"sub": str(user.id), "role": user.role, "username": user.username})
+    token = create_token(
+        {"sub": str(user.id), "role": user.role, "username": user.username}
+    )
     return TokenResponse(access_token=token, role=user.role)
 
 

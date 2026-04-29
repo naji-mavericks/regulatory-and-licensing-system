@@ -1,5 +1,6 @@
 import pytest
-from app.services.status_machine import transition, InvalidTransitionError
+
+from app.services.status_machine import InvalidTransitionError, transition
 
 
 def test_valid_transition_application_received_to_under_review():
@@ -7,7 +8,10 @@ def test_valid_transition_application_received_to_under_review():
 
 
 def test_valid_transition_under_review_to_pending_resubmission():
-    assert transition("Under Review", "Pending Pre-Site Resubmission") == "Pending Pre-Site Resubmission"
+    assert (
+        transition("Under Review", "Pending Pre-Site Resubmission")
+        == "Pending Pre-Site Resubmission"
+    )
 
 
 def test_valid_transition_under_review_to_pending_approval():

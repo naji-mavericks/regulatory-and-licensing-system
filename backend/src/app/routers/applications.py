@@ -160,11 +160,15 @@ def list_applications(
                 "id": str(app.id),
                 "status": OPERATOR_STATUS_MAP.get(app.status, app.status),
                 "centre_name": (
-                    app.submissions[-1].form_data.get("basic_details", {}).get("centre_name", "")
+                    app.submissions[-1]
+                    .form_data.get("basic_details", {})
+                    .get("centre_name", "")
                     if app.submissions else ""
                 ),
                 "type_of_service": (
-                    app.submissions[-1].form_data.get("operations", {}).get("type_of_service", "")
+                    app.submissions[-1]
+                    .form_data.get("operations", {})
+                    .get("type_of_service", "")
                     if app.submissions else ""
                 ),
                 "current_round": app.current_round,
@@ -176,7 +180,10 @@ def list_applications(
     # Officer branch
     query = (
         db.query(Application)
-        .options(selectinload(Application.submissions), joinedload(Application.operator))
+        .options(
+            selectinload(Application.submissions),
+            joinedload(Application.operator),
+        )
         .filter(Application.submissions.any())
     )
     if status_filter:
@@ -187,12 +194,16 @@ def list_applications(
             "id": str(app.id),
             "status": OFFICER_STATUS_MAP.get(app.status, app.status),
             "centre_name": (
-                app.submissions[-1].form_data.get("basic_details", {}).get("centre_name", "")
+                app.submissions[-1]
+                .form_data.get("basic_details", {})
+                .get("centre_name", "")
                 if app.submissions else ""
             ),
             "operator_name": app.operator.full_name,
             "type_of_service": (
-                app.submissions[-1].form_data.get("operations", {}).get("type_of_service", "")
+                app.submissions[-1]
+                .form_data.get("operations", {})
+                .get("type_of_service", "")
                 if app.submissions else ""
             ),
             "current_round": app.current_round,
@@ -279,12 +290,18 @@ def get_application(
         Application.id == uuid.UUID(application_id)
     ).first()
     if application is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
 
     operator = db.query(User).filter(User.id == application.operator_id).first()
     submissions = (
         db.query(Submission)
-        .options(selectinload(Submission.documents), selectinload(Submission.feedback_items))
+        .options(
+            selectinload(Submission.documents),
+            selectinload(Submission.feedback_items),
+        )
         .filter(Submission.application_id == application.id)
         .order_by(Submission.round_number)
         .all()
@@ -306,16 +323,28 @@ def get_application(
                 "submitted_at": sub.submitted_at.isoformat(),
                 "form_data": sub.form_data,
                 "documents": [
-                    {"id": str(d.id), "doc_type": d.doc_type, "filename": d.filename,
-                     "ai_status": d.ai_status, "ai_details": d.ai_details}
+                    {
+                        "id": str(d.id),
+                        "doc_type": d.doc_type,
+                        "filename": d.filename,
+                        "ai_status": d.ai_status,
+                        "ai_details": d.ai_details,
+                    }
                     for d in sub.documents
                 ],
                 "feedback_items": [
-                    {"id": str(f.id), "target_type": f.target_type, "section": f.section,
-                     "field_key": f.field_key,
-                     "document_id": str(f.document_id) if f.document_id else None,
-                     "comment": f.comment, "created_by": f.created_by,
-                     "created_at": f.created_at.isoformat()}
+                    {
+                        "id": str(f.id),
+                        "target_type": f.target_type,
+                        "section": f.section,
+                        "field_key": f.field_key,
+                        "document_id": (
+                            str(f.document_id) if f.document_id else None
+                        ),
+                        "comment": f.comment,
+                        "created_by": f.created_by,
+                        "created_at": f.created_at.isoformat(),
+                    }
                     for f in sub.feedback_items
                 ],
             }
@@ -480,7 +509,8 @@ def resubmit_application(
 
     notify(
         "officer",
-        f"Application {application.id} resubmitted (Round {new_round_number}). Ready for review.",
+        f"Application {application.id} resubmitted"
+        f" (Round {new_round_number}). Ready for review.",
     )
 
     return {
@@ -515,15 +545,24 @@ def submit_feedback(
         Application.id == uuid.UUID(application_id)
     ).first()
     if application is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
 
     feedback_items_data = body.get("feedback_items", [])
     new_status = body.get("new_status")
 
     if not feedback_items_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="feedback_items must be non-empty")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="feedback_items must be non-empty",
+        )
     if not new_status:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="new_status is required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="new_status is required",
+        )
 
     valid_sections = {"basic_details", "operations", "declarations"}
     for item in feedback_items_data:
@@ -534,35 +573,66 @@ def submit_feedback(
         comment = item.get("comment", "")
 
         if target_type not in ("field", "document"):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="target_type must be 'field' or 'document'")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="target_type must be 'field' or 'document'",
+            )
         if not comment:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="comment must be non-empty")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="comment must be non-empty",
+            )
 
         if target_type == "field":
             if not field_key:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="field_key required for field feedback")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="field_key required for field feedback",
+                )
             if document_id is not None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="document_id must be null for field feedback")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="document_id must be null for field feedback",
+                )
             if section not in valid_sections:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"section must be one of {valid_sections}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"section must be one of {valid_sections}",
+                )
         else:
             if not document_id:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="document_id required for document feedback")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="document_id required for document feedback",
+                )
             if field_key is not None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="field_key must be null for document feedback")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="field_key must be null for document feedback",
+                )
             if section != "documents":
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="section must be 'documents' for document feedback")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="section must be 'documents' for document feedback",
+                )
             doc = db.query(Document).filter(
                 Document.id == uuid.UUID(document_id),
                 Document.application_id == application.id,
             ).first()
             if doc is None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Document {document_id} not found in this application")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Document {document_id} not found"
+                    f" in this application",
+                )
 
     try:
         transition(application.status, new_status)
     except InvalidTransitionError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
 
     latest_sub = (
         db.query(Submission)
@@ -571,7 +641,10 @@ def submit_feedback(
         .first()
     )
     if latest_sub is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No submission found")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No submission found",
+        )
 
     created_items = []
     for item in feedback_items_data:
@@ -580,7 +653,10 @@ def submit_feedback(
             target_type=item["target_type"],
             section=item["section"],
             field_key=item.get("field_key"),
-            document_id=uuid.UUID(item["document_id"]) if item.get("document_id") else None,
+            document_id=(
+                uuid.UUID(item["document_id"])
+                if item.get("document_id") else None
+            ),
             comment=item["comment"],
             created_by=user.get("username", "officer"),
         )
@@ -592,7 +668,11 @@ def submit_feedback(
     for fi in created_items:
         db.refresh(fi)
 
-    notify("operator", f"Application {application.id} updated to '{new_status}'. Please log in to review officer feedback.")
+    notify(
+        "operator",
+        f"Application {application.id} updated to '{new_status}'."
+        " Please log in to review officer feedback.",
+    )
 
     return {
         "application_id": str(application.id),
@@ -623,22 +703,34 @@ def update_status(
         Application.id == uuid.UUID(application_id)
     ).first()
     if application is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
 
     new_status = body.get("new_status")
     if not new_status:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="new_status is required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="new_status is required",
+        )
 
     try:
         transition(application.status, new_status)
     except InvalidTransitionError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
 
     application.status = new_status
     db.commit()
     db.refresh(application)
 
-    notify("operator", f"Application {application.id} status changed to '{new_status}'.")
+    notify(
+        "operator",
+        f"Application {application.id} status changed to '{new_status}'.",
+    )
 
     return {
         "id": str(application.id),

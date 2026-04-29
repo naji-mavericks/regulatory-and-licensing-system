@@ -402,7 +402,9 @@ def test_list_applications_officer_status_filter_match(client, db_session):
     headers_alice = get_operator_token(client, db_session)
     _submit_app(client, headers_alice)
     headers_bob = get_officer_token(client)
-    response = client.get("/applications?status=Application Received", headers=headers_bob)
+    response = client.get(
+        "/applications?status=Application Received", headers=headers_bob
+    )
     assert response.status_code == 200
     assert len(response.json()) >= 1
 

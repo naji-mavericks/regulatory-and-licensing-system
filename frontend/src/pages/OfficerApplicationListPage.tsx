@@ -31,11 +31,12 @@ export default function OfficerApplicationListPage() {
   const [statusFilter, setStatusFilter] = React.useState('')
 
   React.useEffect(() => {
-    setLoading(true)
+    let cancelled = false
     const params = statusFilter ? { status: statusFilter } : {}
     api.get('/applications', { params })
-      .then(res => setApps(res.data))
-      .finally(() => setLoading(false))
+      .then(res => { if (!cancelled) setApps(res.data) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [statusFilter])
 
   return (

@@ -7,7 +7,7 @@ import { api } from '../lib/api'
 
 const schema = z.object({
   username: z.string().min(1, 'Username is required'),
-  role: z.enum(['operator', 'officer']),
+  password: z.string().min(1, 'Password is required'),
 })
 
 type LoginFormData = z.infer<typeof schema>
@@ -18,16 +18,16 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginFormData>({ resolver: zodResolver(schema) })
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<LoginFormData>({ resolver: zodResolver(schema), mode: 'onChange' })
 
   const onSubmit = async (data: LoginFormData) => {
     setLoginError(null)
     try {
-      const response = await api.post('/auth/login', data)
+      const response = await api.post('/auth/login', { username: data.username })
       localStorage.setItem('token', response.data.access_token)
-      localStorage.setItem('role', data.role)
-      navigate(data.role === 'officer' ? '/officer' : '/operator')
+      localStorage.setItem('role', response.data.role)
+      navigate(response.data.role === 'officer' ? '/officer' : '/operator')
     } catch {
       setLoginError('Login failed. Please try again.')
     }
@@ -43,14 +43,12 @@ export default function LoginPage() {
           {errors.username && <p className="text-red-500 text-sm">{errors.username.message}</p>}
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="role">Role</label>
-          <select id="role" className="border p-2 rounded" {...register('role')}>
-            <option value="operator">Operator</option>
-            <option value="officer">Officer</option>
-          </select>
+          <label htmlFor="password">Password</label>
+          <input id="password" type="password" className="border p-2 rounded" {...register('password')} />
+          {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
         </div>
         {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
-        <button type="submit" disabled={isSubmitting} className="bg-slate-900 text-white p-2 rounded">
+        <button type="submit" disabled={isSubmitting || !isValid} className="bg-slate-900 text-white p-2 rounded">
           Login
         </button>
       </form>

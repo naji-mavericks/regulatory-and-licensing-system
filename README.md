@@ -11,6 +11,8 @@ The core workflow is: submission → review → feedback → resubmission (multi
 
 This MVP implements Use Cases 1 & 2 (see `SCOPE.md` and `USE_CASES.md`). Use Case 3 (on-site assessment checklist) is deferred.
 
+All work was committed directly to `main`. Given the 3-day solo timeline, branching would have added overhead without benefit — the CI pipeline on `main` provides the same safety net.
+
 ## Tech Stack
 
 | Layer | Technology |

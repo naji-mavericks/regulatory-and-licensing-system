@@ -153,14 +153,14 @@ docker-compose.yml        # Docker services
 
 ## Error Handling & Validation
 
-| Layer | Approach |
-|-------|----------|
-| Backend — request shape | pydantic models on all request bodies; FastAPI returns 422 with field-level errors automatically |
-| Backend — business rules | `status_machine.py` raises `InvalidTransitionError` on illegal transitions; caught and returned as 400 |
-| Backend — authorization | `require_operator` / `require_officer` dependencies return 401/403 before any handler logic runs |
-| Backend — document uploads | Validates presence of all 3 required doc types before creating a submission round |
-| Frontend — new application form | `react-hook-form` + `zod` schema; fields are validated before the POST is sent |
-| Frontend — resubmission | Only flagged fields are editable; unchanged fields are carried forward server-side, not re-validated |
+| Layer | Approach                                                                                                                                                |
+|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Backend — request shape | pydantic models on auth request bodies (FastAPI returns 422 with field-level errors automatically). Application and document endpoints validate by hand |
+| Backend — business rules | `status_machine.py` raises `InvalidTransitionError` on illegal transitions; caught and returned as 409                                                    |
+| Backend — authorization | `require_operator` / `require_officer` dependencies return 401/403 before any handler logic runs                                                        |
+| Backend — document uploads | Validates presence of all 3 required doc types before creating a submission round                                                                       |
+| Frontend — new application form | `react-hook-form` + `zod` schema; fields are validated before the POST is sent                                                                          |
+| Frontend — resubmission | Only flagged fields are editable; unchanged fields are carried forward server-side, not re-validated                                                    |
 
 ## Mocks & Stubs
 
